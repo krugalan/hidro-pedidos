@@ -1,0 +1,92 @@
+/* ── Variables de diseño ─────────────────────────────────────── */
+:root {
+  /* Paleta clara */
+  --color-fondo:        #EEF4EF;
+  --color-superficie:   #FFFFFF;
+  --color-texto:        #16271E;
+  --color-texto-sec:    #5A6C61;
+  --color-linea:        #D4E1D7;
+  --color-emoji-bg:     #DDEDE1;
+  --color-fila-activa:  #EBF5EC;
+  --color-accion:       #2E7D4F;
+  --color-accion-texto: #FFFFFF;
+  --color-header-bg:    #1F5A3D;
+  --color-header-text:  #F1F8F3;
+  --color-foco:         #1D6F8A;
+
+  /* Tipografías */
+  --font-display: 'Bricolage Grotesque', system-ui, sans-serif;
+  --font-body:    'Figtree', system-ui, sans-serif;
+
+  color-scheme: light dark;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-fondo:        #0F1914;
+    --color-superficie:   #16231C;
+    --color-texto:        #E4EFE8;
+    --color-texto-sec:    #9DB1A4;
+    --color-linea:        #26382D;
+    --color-emoji-bg:     #1E3027;
+    --color-fila-activa:  #1A2D22;
+    --color-accion:       #5FBF83;
+    --color-accion-texto: #0B1710;
+    --color-header-bg:    #163F2B;
+    --color-header-text:  #E4EFE8;
+    --color-foco:         #4BAFCD;
+  }
+}
+
+/* ── Reset mínimo ────────────────────────────────────────────── */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background-color: var(--color-fondo);
+  color: var(--color-texto);
+  font-family: var(--font-body);
+  min-height: 100dvh;
+}
+
+#root {
+  min-height: 100dvh;
+}
+
+/* Sin scroll horizontal en móvil */
+body,
+#root {
+  overflow-x: hidden;
+}
+
+/* ── Foco accesible global ───────────────────────────────────── */
+:focus-visible {
+  outline: 2px solid var(--color-foco);
+  outline-offset: 2px;
+}
+
+/* ── Reducción de movimiento ─────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ── Wrapper centrado en desktop ─────────────────────────────── */
+/* El header y la barra son sticky/fixed y ya centran su inner */
+/* El main también se centra vía ListaProductos */

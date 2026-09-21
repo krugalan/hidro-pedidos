@@ -1,0 +1,9 @@
+.app {
+  min-height: 100dvh;
+  background-color: var(--color-fondo);
+}
+
+.main {
+  /* Espacio inferior para que la barra fija no tape el último producto */
+  padding-bottom: calc(5rem + env(safe-area-inset-bottom, 0px));
+}
