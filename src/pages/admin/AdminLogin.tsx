@@ -1,8 +1,10 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
 import styles from "./Admin.module.css";
 
 export function AdminLogin() {
+  const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -17,8 +19,10 @@ export function AdminLogin() {
 
     if (authError) {
       setError("Email o contraseña incorrectos.");
+      setLoading(false);
+    } else {
+      navigate("/admin/cosechas", { replace: true });
     }
-    setLoading(false);
   };
 
   return (

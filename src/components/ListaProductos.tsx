@@ -1,21 +1,22 @@
-import config from "../config";
+import type { ProductoUI } from "../types";
 import { ItemProducto } from "./ItemProducto";
 import styles from "./ListaProductos.module.css";
 
 interface Props {
+  productos: ProductoUI[];
   getCantidad: (id: string) => number;
   onAgregar: (id: string) => void;
   onQuitar: (id: string) => void;
 }
 
-export function ListaProductos({ getCantidad, onAgregar, onQuitar }: Props) {
+export function ListaProductos({ productos, getCantidad, onAgregar, onQuitar }: Props) {
   return (
     <section className={styles.seccion}>
       <p className={styles.descripcion}>
-        Elegí lo que querés de la cosecha de esta semana. Hasta {config.maxPorProducto} unidades por producto.
+        Elegí lo que querés de la cosecha de esta semana.
       </p>
       <ul className={styles.lista}>
-        {config.productos.map((p) => (
+        {productos.map((p) => (
           <ItemProducto
             key={p.id}
             producto={p}

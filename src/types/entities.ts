@@ -1,6 +1,7 @@
 export interface Zona {
   id: string;
   nombre: string;
+  tipo: 'delivery' | 'retiro';
   created_at: string;
 }
 
@@ -25,7 +26,7 @@ export interface Direccion {
 export interface Cosecha {
   id: string;
   nombre: string;
-  descripcion?: string;
+  fecha_cosecha: string;
   activa: boolean;
   created_at: string;
   items?: CosechaItem[];
@@ -38,6 +39,7 @@ export interface CosechaItem {
   producto_id: string;
   cantidad_estimada?: number;
   created_at: string;
+  producto?: Producto;
 }
 
 export interface FechaEntrega {

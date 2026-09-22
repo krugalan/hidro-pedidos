@@ -1,9 +1,8 @@
-import config from "../config";
-import type { Producto } from "../config";
+import type { ProductoUI } from "../types";
 import styles from "./ItemProducto.module.css";
 
 interface Props {
-  producto: Producto;
+  producto: ProductoUI;
   cantidad: number;
   onAgregar: (id: string) => void;
   onQuitar: (id: string) => void;
@@ -17,7 +16,7 @@ const formatPeso = (monto: number) =>
   }).format(monto);
 
 export function ItemProducto({ producto, cantidad, onAgregar, onQuitar }: Props) {
-  const enMax = cantidad >= config.maxPorProducto;
+  const enMax = cantidad >= producto.maxPorProducto;
 
   return (
     <li className={`${styles.item} ${cantidad > 0 ? styles.activo : ""}`}>
@@ -34,7 +33,7 @@ export function ItemProducto({ producto, cantidad, onAgregar, onQuitar }: Props)
         </p>
         {enMax && (
           <p className={styles.maxAviso} role="status">
-            Llegaste al máximo de {config.maxPorProducto}
+            Llegaste al máximo de {producto.maxPorProducto}
           </p>
         )}
       </div>

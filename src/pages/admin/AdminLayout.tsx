@@ -8,10 +8,11 @@ interface Props {
 }
 
 const NAV = [
-  { to: "cosechas",      label: "🌿 Cosechas"      },
-  { to: "pedidos",       label: "📋 Pedidos"        },
-  { to: "clientes",      label: "👤 Clientes"       },
-  { to: "configuracion", label: "⚙️ Configuración"  },
+  { to: "/admin/cosechas",      label: "🌿 Cosechas"      },
+  { to: "/admin/productos",     label: "🥬 Productos"      },
+  { to: "/admin/pedidos",       label: "📋 Pedidos"        },
+  { to: "/admin/clientes",      label: "👤 Clientes"       },
+  { to: "/admin/configuracion", label: "⚙️ Configuración"  },
 ];
 
 export function AdminLayout({ user }: Props) {

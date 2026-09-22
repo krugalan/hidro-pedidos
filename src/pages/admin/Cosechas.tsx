@@ -1,33 +1,45 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase";
-import type { Cosecha, FechaEntrega } from "../../types/entities";
+import type { Cosecha, FechaEntrega, Producto } from "../../types/entities";
 import styles from "./Admin.module.css";
 
-const fechaLocal = (iso: string) =>
-  new Date(iso + "T00:00:00").toLocaleDateString("es-AR", {
-    weekday: "long", day: "numeric", month: "long",
-  });
+function semanaAnio(iso: string): string {
+  const d = new Date(iso + "T00:00:00");
+  d.setDate(d.getDate() + 3 - ((d.getDay() + 6) % 7));
+  const semana1 = new Date(d.getFullYear(), 0, 4);
+  const semana = 1 + Math.round(
+    ((d.getTime() - semana1.getTime()) / 86400000 - 3 + ((semana1.getDay() + 6) % 7)) / 7
+  );
+  return `Semana ${semana} del ${d.getFullYear()}`;
+}
+
+const fechaLarga = (iso: string) =>
+  new Date(iso + "T00:00:00").toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long" });
+
+const fechaCorta = (iso: string) =>
+  new Date(iso + "T00:00:00").toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" });
 
 export function Cosechas() {
   const [cosechas, setCosechas] = useState<Cosecha[]>([]);
+  const [todosProductos, setTodosProductos] = useState<Producto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  // Form nueva cosecha
-  const [nombre, setNombre] = useState("");
-  const [descripcion, setDescripcion] = useState("");
-  const [fecha, setFecha] = useState("");
+  const [fechaCosecha, setFechaCosecha] = useState("");
+  const [fechaEntrega, setFechaEntrega] = useState("");
   const [guardando, setGuardando] = useState(false);
 
   const cargar = async () => {
     setLoading(true);
-    const { data, error: err } = await supabase
-      .from("cosechas")
-      .select("*, fechas:fechas_entrega(*)")
-      .order("created_at", { ascending: false });
-
-    if (err) setError(err.message);
-    else setCosechas((data ?? []) as Cosecha[]);
+    const [{ data: cos }, { data: prods }] = await Promise.all([
+      supabase
+        .from("cosechas")
+        .select("*, items:cosecha_items(*, producto:productos(*)), fechas:fechas_entrega(*)")
+        .order("fecha_cosecha", { ascending: false }),
+      supabase.from("productos").select("*").eq("activo", true).order("nombre"),
+    ]);
+    setCosechas((cos ?? []) as Cosecha[]);
+    setTodosProductos((prods ?? []) as Producto[]);
     setLoading(false);
   };
 
@@ -38,56 +50,69 @@ export function Cosechas() {
     setGuardando(true);
     setError("");
 
-    const { data: cosecha, error: errCosecha } = await supabase
+    const { data: cosecha, error: err } = await supabase
       .from("cosechas")
-      .insert({ nombre: nombre.trim(), descripcion: descripcion.trim() || null, activa: true })
+      .insert({ nombre: semanaAnio(fechaCosecha), fecha_cosecha: fechaCosecha, activa: true })
       .select()
       .single();
 
-    if (errCosecha || !cosecha) {
-      setError(errCosecha?.message ?? "Error al crear cosecha.");
-      setGuardando(false);
-      return;
+    if (err || !cosecha) { setError(err?.message ?? "Error al crear."); setGuardando(false); return; }
+
+    if (fechaEntrega) {
+      await supabase.from("fechas_entrega").insert({ cosecha_id: cosecha.id, fecha: fechaEntrega, activa: true });
     }
 
-    if (fecha) {
-      await supabase.from("fechas_entrega").insert({
-        cosecha_id: cosecha.id,
-        fecha,
-        activa: true,
-      });
-    }
-
-    setNombre("");
-    setDescripcion("");
-    setFecha("");
+    setFechaCosecha(""); setFechaEntrega("");
     setGuardando(false);
     cargar();
   };
 
-  const toggleActiva = async (cosecha: Cosecha) => {
-    await supabase
-      .from("cosechas")
-      .update({ activa: !cosecha.activa })
-      .eq("id", cosecha.id);
+  const eliminarCosecha = async (cosecha: Cosecha) => {
+    const { count } = await supabase
+      .from("pedidos")
+      .select("id", { count: "exact", head: true })
+      .eq("cosecha_id", cosecha.id);
+
+    if ((count ?? 0) > 0) {
+      setError(`"${cosecha.nombre}" tiene pedidos asociados y no puede eliminarse.`);
+      return;
+    }
+    await supabase.from("cosechas").delete().eq("id", cosecha.id);
     cargar();
   };
 
-  const agregarFecha = async (cosechaId: string, fechaNueva: string) => {
+  const toggleActiva = async (cosecha: Cosecha) => {
+    await supabase.from("cosechas").update({ activa: !cosecha.activa }).eq("id", cosecha.id);
+    cargar();
+  };
+
+  const toggleProducto = async (cosecha: Cosecha, productoId: string) => {
+    const existente = cosecha.items?.find((i) => i.producto_id === productoId);
+    if (existente) {
+      await supabase.from("cosecha_items").delete().eq("id", existente.id);
+    } else {
+      await supabase.from("cosecha_items").insert({ cosecha_id: cosecha.id, producto_id: productoId });
+    }
+    cargar();
+  };
+
+  const agregarFecha = async (cosechaId: string, fechaNueva: string, fechasExistentes: FechaEntrega[]) => {
     if (!fechaNueva) return;
-    await supabase.from("fechas_entrega").insert({
-      cosecha_id: cosechaId,
-      fecha: fechaNueva,
-      activa: true,
-    });
+    if (fechasExistentes.some((f) => f.fecha === fechaNueva)) {
+      setError("Esa fecha de entrega ya existe en esta cosecha.");
+      return;
+    }
+    await supabase.from("fechas_entrega").insert({ cosecha_id: cosechaId, fecha: fechaNueva, activa: true });
+    cargar();
+  };
+
+  const eliminarFecha = async (id: string) => {
+    await supabase.from("fechas_entrega").delete().eq("id", id);
     cargar();
   };
 
   const toggleFecha = async (fecha: FechaEntrega) => {
-    await supabase
-      .from("fechas_entrega")
-      .update({ activa: !fecha.activa })
-      .eq("id", fecha.id);
+    await supabase.from("fechas_entrega").update({ activa: !fecha.activa }).eq("id", fecha.id);
     cargar();
   };
 
@@ -97,50 +122,28 @@ export function Cosechas() {
     <div className={styles.pagina}>
       <h1 className={styles.paginaTitulo}>Cosechas</h1>
 
-      {/* Formulario nueva cosecha */}
+      {error && <p className={styles.errorMsg} style={{ marginBottom: "1rem" }}>{error}</p>}
+
       <section className={styles.card}>
         <h2 className={styles.cardTitulo}>Nueva cosecha</h2>
         <form onSubmit={crearCosecha} className={styles.form}>
           <div className={styles.formFila}>
             <div className={styles.campo}>
-              <label className={styles.label}>Nombre</label>
-              <input
-                type="text"
-                className={styles.input}
-                value={nombre}
-                onChange={(e) => setNombre(e.target.value)}
-                required
-                placeholder="Ej: Cosecha Semana 38"
-              />
+              <label className={styles.label}>Fecha de cosecha</label>
+              <input type="date" className={styles.input} value={fechaCosecha} onChange={(e) => setFechaCosecha(e.target.value)} required />
+              {fechaCosecha && <span className={styles.ayuda}>{semanaAnio(fechaCosecha)}</span>}
             </div>
             <div className={styles.campo}>
-              <label className={styles.label}>Fecha de entrega</label>
-              <input
-                type="date"
-                className={styles.input}
-                value={fecha}
-                onChange={(e) => setFecha(e.target.value)}
-              />
+              <label className={styles.label}>Fecha de entrega <span className={styles.opcional}>(opcional)</span></label>
+              <input type="date" className={styles.input} value={fechaEntrega} onChange={(e) => setFechaEntrega(e.target.value)} />
             </div>
           </div>
-          <div className={styles.campo}>
-            <label className={styles.label}>Descripción <span className={styles.opcional}>(opcional)</span></label>
-            <textarea
-              className={`${styles.input} ${styles.textarea}`}
-              value={descripcion}
-              onChange={(e) => setDescripcion(e.target.value)}
-              rows={2}
-              placeholder="Qué incluye esta cosecha…"
-            />
-          </div>
-          {error && <p className={styles.errorMsg}>{error}</p>}
-          <button type="submit" className={styles.btnPrimario} disabled={guardando}>
+          <button type="submit" className={styles.btnPrimario} disabled={guardando || !fechaCosecha}>
             {guardando ? "Guardando…" : "Crear cosecha"}
           </button>
         </form>
       </section>
 
-      {/* Lista cosechas */}
       <section>
         {cosechas.length === 0 ? (
           <p className={styles.estado}>No hay cosechas todavía.</p>
@@ -149,8 +152,12 @@ export function Cosechas() {
             <CosechaCard
               key={c.id}
               cosecha={c}
+              todosProductos={todosProductos}
               onToggleActiva={() => toggleActiva(c)}
-              onAgregarFecha={(f) => agregarFecha(c.id, f)}
+              onEliminar={() => eliminarCosecha(c)}
+              onToggleProducto={(pid) => toggleProducto(c, pid)}
+              onAgregarFecha={(f) => agregarFecha(c.id, f, c.fechas ?? [])}
+              onEliminarFecha={eliminarFecha}
               onToggleFecha={toggleFecha}
             />
           ))
@@ -161,40 +168,72 @@ export function Cosechas() {
 }
 
 function CosechaCard({
-  cosecha,
-  onToggleActiva,
-  onAgregarFecha,
-  onToggleFecha,
+  cosecha, todosProductos,
+  onToggleActiva, onEliminar, onToggleProducto,
+  onAgregarFecha, onEliminarFecha, onToggleFecha,
 }: {
   cosecha: Cosecha;
+  todosProductos: Producto[];
   onToggleActiva: () => void;
+  onEliminar: () => void;
+  onToggleProducto: (id: string) => void;
   onAgregarFecha: (fecha: string) => void;
+  onEliminarFecha: (id: string) => void;
   onToggleFecha: (f: FechaEntrega) => void;
 }) {
   const [nuevaFecha, setNuevaFecha] = useState("");
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
-  const handleAgregarFecha = () => {
-    if (nuevaFecha) {
-      onAgregarFecha(nuevaFecha);
-      setNuevaFecha("");
-    }
-  };
+  const productosEnCosecha = new Set(cosecha.items?.map((i) => i.producto_id) ?? []);
+
+  const handleAgregarFecha = () => { if (nuevaFecha) { onAgregarFecha(nuevaFecha); setNuevaFecha(""); } };
 
   return (
     <div className={`${styles.card} ${!cosecha.activa ? styles.cardInactiva : ""}`}>
       <div className={styles.cardHeaderRow}>
         <div>
           <h3 className={styles.cosechaNombre}>{cosecha.nombre}</h3>
-          {cosecha.descripcion && (
-            <p className={styles.cosechaDesc}>{cosecha.descripcion}</p>
+          <p className={styles.cosechaDesc}>Cosecha: {fechaCorta(cosecha.fecha_cosecha)}</p>
+        </div>
+        <div className={styles.cosechaAcciones}>
+          <button
+            className={cosecha.activa ? styles.btnActiva : styles.btnInactiva}
+            onClick={onToggleActiva}
+          >
+            {cosecha.activa ? "Abierta" : "Cerrada"}
+          </button>
+          {!confirmDelete ? (
+            <button className={styles.btnDanger} onClick={() => setConfirmDelete(true)}>Eliminar</button>
+          ) : (
+            <div className={styles.confirmRow}>
+              <span className={styles.confirmTxt}>¿Seguro?</span>
+              <button className={styles.btnDanger} onClick={() => { onEliminar(); setConfirmDelete(false); }}>Sí</button>
+              <button className={styles.btnSecundario} onClick={() => setConfirmDelete(false)}>No</button>
+            </div>
           )}
         </div>
-        <button
-          className={cosecha.activa ? styles.btnActiva : styles.btnInactiva}
-          onClick={onToggleActiva}
-        >
-          {cosecha.activa ? "Activa" : "Inactiva"}
-        </button>
+      </div>
+
+      {/* Productos */}
+      <div className={styles.fechasBloque}>
+        <p className={styles.fechasLabel}>Productos de esta cosecha</p>
+        {todosProductos.length === 0 ? (
+          <p className={styles.sinFechas}>No hay productos activos. Creá productos en la sección Productos.</p>
+        ) : (
+          <div className={styles.productosCheckGrid}>
+            {todosProductos.map((p) => (
+              <label key={p.id} className={`${styles.productoCheck} ${productosEnCosecha.has(p.id) ? styles.productoCheckActivo : ""}`}>
+                <input
+                  type="checkbox"
+                  checked={productosEnCosecha.has(p.id)}
+                  onChange={() => onToggleProducto(p.id)}
+                  className={styles.radioOculto}
+                />
+                <span>{p.emoji} {p.nombre}</span>
+              </label>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Fechas de entrega */}
@@ -202,29 +241,27 @@ function CosechaCard({
         <p className={styles.fechasLabel}>Fechas de entrega</p>
         {cosecha.fechas && cosecha.fechas.length > 0 ? (
           <ul className={styles.fechasList}>
-            {cosecha.fechas.map((f) => (
-              <li key={f.id} className={`${styles.fechaItem} ${!f.activa ? styles.fechaInactiva : ""}`}>
-                <span>{fechaLocal(f.fecha)}</span>
-                <button className={styles.btnFechaToogle} onClick={() => onToggleFecha(f)}>
-                  {f.activa ? "Desactivar" : "Activar"}
-                </button>
-              </li>
-            ))}
+            {cosecha.fechas
+              .sort((a, b) => a.fecha.localeCompare(b.fecha))
+              .map((f) => (
+                <li key={f.id} className={`${styles.fechaItem} ${!f.activa ? styles.fechaInactiva : ""}`}>
+                  <span>{fechaLarga(f.fecha)}</span>
+                  <div className={styles.fechaAcciones}>
+                    <button className={styles.btnFechaToogle} onClick={() => onToggleFecha(f)}>
+                      {f.activa ? "Desactivar" : "Activar"}
+                    </button>
+                    <button className={styles.btnDanger} onClick={() => onEliminarFecha(f.id)}>✕</button>
+                  </div>
+                </li>
+              ))}
           </ul>
         ) : (
           <p className={styles.sinFechas}>Sin fechas de entrega.</p>
         )}
 
         <div className={styles.agregarFechaFila}>
-          <input
-            type="date"
-            className={styles.inputPeque}
-            value={nuevaFecha}
-            onChange={(e) => setNuevaFecha(e.target.value)}
-          />
-          <button className={styles.btnSecundario} onClick={handleAgregarFecha} disabled={!nuevaFecha}>
-            Agregar fecha
-          </button>
+          <input type="date" className={styles.inputPeque} value={nuevaFecha} onChange={(e) => setNuevaFecha(e.target.value)} />
+          <button className={styles.btnSecundario} onClick={handleAgregarFecha} disabled={!nuevaFecha}>Agregar fecha</button>
         </div>
       </div>
     </div>

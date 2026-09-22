@@ -28,16 +28,24 @@ export function Configuracion() {
     cargarProductos();
   }, []);
 
+  const [tipoNuevaZona, setTipoNuevaZona] = useState<'delivery'|'retiro'>('delivery');
+
   const crearZona = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    const { error: err } = await supabase.from("zonas").insert({ nombre: nuevaZona.trim() });
+    const { error: err } = await supabase.from("zonas").insert({ nombre: nuevaZona.trim(), tipo: tipoNuevaZona });
     if (err) setError(err.message);
     else { setNuevaZona(""); cargarZonas(); }
   };
 
   const eliminarZona = async (id: string) => {
     await supabase.from("zonas").delete().eq("id", id);
+    cargarZonas();
+  };
+
+  const toggleTipoZona = async (zona: import("../../types/entities").Zona) => {
+    const nuevo = zona.tipo === 'delivery' ? 'retiro' : 'delivery';
+    await supabase.from("zonas").update({ tipo: nuevo }).eq("id", zona.id);
     cargarZonas();
   };
 
@@ -60,14 +68,11 @@ export function Configuracion() {
         <h2 className={styles.cardTitulo}>Zonas de entrega</h2>
 
         <form onSubmit={crearZona} className={styles.formInline}>
-          <input
-            type="text"
-            className={styles.input}
-            value={nuevaZona}
-            onChange={(e) => setNuevaZona(e.target.value)}
-            required
-            placeholder="Nombre de zona (Ej: Centro)"
-          />
+          <input type="text" className={styles.input} value={nuevaZona} onChange={(e) => setNuevaZona(e.target.value)} required placeholder="Nombre de zona (Ej: Centro)" />
+          <select className={styles.inputPeque} value={tipoNuevaZona} onChange={(e) => setTipoNuevaZona(e.target.value as 'delivery'|'retiro')}>
+            <option value="delivery">Delivery</option>
+            <option value="retiro">Retiro</option>
+          </select>
           <button type="submit" className={styles.btnPrimario}>Agregar</button>
         </form>
         {error && <p className={styles.errorMsg}>{error}</p>}
@@ -79,7 +84,16 @@ export function Configuracion() {
             {zonas.map((z) => (
               <li key={z.id} className={styles.zonaItem}>
                 <span>{z.nombre}</span>
-                <button className={styles.btnDanger} onClick={() => eliminarZona(z.id)}>Eliminar</button>
+                <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+                  <button
+                    className={z.tipo === 'retiro' ? styles.btnInactiva : styles.btnActiva}
+                    onClick={() => toggleTipoZona(z)}
+                    title="Cambiar tipo"
+                  >
+                    {z.tipo === 'retiro' ? '🏠 Retiro' : '🚚 Delivery'}
+                  </button>
+                  <button className={styles.btnDanger} onClick={() => eliminarZona(z.id)}>Eliminar</button>
+                </div>
               </li>
             ))}
           </ul>

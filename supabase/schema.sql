@@ -54,14 +54,19 @@ CREATE TABLE productos (
 
 -- ------------------------------------------------------------
 -- Cosechas (cada tanda/ciclo de producción)
+-- nombre se auto-genera como "Semana X del YYYY" desde fecha_cosecha
 -- ------------------------------------------------------------
 CREATE TABLE cosechas (
-  id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
-  nombre      TEXT        NOT NULL,
-  descripcion TEXT,
-  activa      BOOLEAN     NOT NULL DEFAULT TRUE,
-  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  id             UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  nombre         TEXT        NOT NULL,
+  fecha_cosecha  DATE        NOT NULL,
+  activa         BOOLEAN     NOT NULL DEFAULT TRUE,
+  created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- Si ya creaste la tabla sin fecha_cosecha, corré esto:
+-- ALTER TABLE cosechas ADD COLUMN IF NOT EXISTS fecha_cosecha DATE;
+-- ALTER TABLE cosechas DROP COLUMN IF EXISTS descripcion;
 
 -- ------------------------------------------------------------
 -- Cosecha Items (qué productos incluye cada cosecha y en qué cantidad)
@@ -125,16 +130,28 @@ CREATE TABLE pedido_items (
 );
 
 -- ------------------------------------------------------------
--- Row Level Security (activar; políticas a definir en prod)
+-- Row Level Security — todas las tablas
+-- Solo usuarios autenticados (admin) pueden leer/escribir
 -- ------------------------------------------------------------
-ALTER TABLE pedidos    ENABLE ROW LEVEL SECURITY;
-ALTER TABLE clientes   ENABLE ROW LEVEL SECURITY;
-ALTER TABLE direcciones ENABLE ROW LEVEL SECURITY;
+ALTER TABLE zonas           ENABLE ROW LEVEL SECURITY;
+ALTER TABLE clientes        ENABLE ROW LEVEL SECURITY;
+ALTER TABLE direcciones     ENABLE ROW LEVEL SECURITY;
+ALTER TABLE productos       ENABLE ROW LEVEL SECURITY;
+ALTER TABLE cosechas        ENABLE ROW LEVEL SECURITY;
+ALTER TABLE cosecha_items   ENABLE ROW LEVEL SECURITY;
+ALTER TABLE fechas_entrega  ENABLE ROW LEVEL SECURITY;
+ALTER TABLE pedidos         ENABLE ROW LEVEL SECURITY;
+ALTER TABLE pedido_items    ENABLE ROW LEVEL SECURITY;
 
--- Política temporal: solo usuarios autenticados (admin) pueden leer/escribir todo
-CREATE POLICY "admin_all_pedidos"    ON pedidos    FOR ALL TO authenticated USING (true) WITH CHECK (true);
-CREATE POLICY "admin_all_clientes"   ON clientes   FOR ALL TO authenticated USING (true) WITH CHECK (true);
-CREATE POLICY "admin_all_direcciones" ON direcciones FOR ALL TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "admin_all_zonas"         ON zonas          FOR ALL TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "admin_all_clientes"      ON clientes       FOR ALL TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "admin_all_direcciones"   ON direcciones    FOR ALL TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "admin_all_productos"     ON productos      FOR ALL TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "admin_all_cosechas"      ON cosechas       FOR ALL TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "admin_all_cosecha_items" ON cosecha_items  FOR ALL TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "admin_all_fechas"        ON fechas_entrega FOR ALL TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "admin_all_pedidos"       ON pedidos        FOR ALL TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "admin_all_pedido_items"  ON pedido_items   FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
 -- ------------------------------------------------------------
 -- Datos de ejemplo — Zonas

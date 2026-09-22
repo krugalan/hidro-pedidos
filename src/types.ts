@@ -13,4 +13,15 @@ export interface DatosCliente {
   direccion: string;
   entrega: TipoEntrega;
   email?: string;
+  zona_id?: string;
+  zona_nombre?: string;
+}
+
+export interface ProductoUI {
+  id: string;
+  nombre: string;
+  detalle: string;
+  precio: number;
+  emoji: string;
+  maxPorProducto: number;
 }

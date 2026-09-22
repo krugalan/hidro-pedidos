@@ -1,18 +1,17 @@
 import { useState, useCallback } from "react";
-import type { ItemCarrito } from "../types";
-import config from "../config";
+import type { ItemCarrito, ProductoUI } from "../types";
 
-export function useCarrito() {
+export function useCarrito(productos: ProductoUI[]) {
   const [items, setItems] = useState<ItemCarrito[]>([]);
 
   const agregar = useCallback((id: string) => {
-    const producto = config.productos.find((p) => p.id === id);
+    const producto = productos.find((p) => p.id === id);
     if (!producto) return;
 
     setItems((prev) => {
       const existente = prev.find((i) => i.id === id);
       if (existente) {
-        if (existente.cantidad >= (producto.maxPorProducto ?? config.maxPorProducto)) return prev;
+        if (existente.cantidad >= producto.maxPorProducto) return prev;
         return prev.map((i) =>
           i.id === id ? { ...i, cantidad: i.cantidad + 1 } : i
         );
@@ -28,7 +27,7 @@ export function useCarrito() {
         },
       ];
     });
-  }, []);
+  }, [productos]);
 
   const quitar = useCallback((id: string) => {
     setItems((prev) => {

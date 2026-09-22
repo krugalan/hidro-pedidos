@@ -18,7 +18,8 @@ export function armarMensaje(
   entrega: TipoEntrega,
   direccion: string,
   notas: string,
-  numeroPedido: number
+  numeroPedido: number,
+  zonaNombre?: string
 ): string {
   const fecha = proximaEntrega();
   const subtotal = items.reduce((acc, i) => acc + i.precio * i.cantidad, 0);
@@ -33,8 +34,10 @@ export function armarMensaje(
   if (entrega === "domicilio") {
     msg += `\nEnvío a domicilio: ${formatPeso(config.envioCosto)}`;
     msg += `\nDirección: ${direccion}, Pinamar`;
+    if (zonaNombre) msg += ` (${zonaNombre})`;
   } else {
-    msg += `\nRetiro en Zona Hospital (${config.retiroLugar})`;
+    const lugar = zonaNombre ?? config.retiroLugar;
+    msg += `\nRetiro en ${lugar}`;
   }
 
   msg += `\n*Total: ${formatPeso(total)}*`;
@@ -54,8 +57,9 @@ export function armarLinkWhatsApp(
   entrega: TipoEntrega,
   direccion: string,
   notas: string,
-  numeroPedido: number
+  numeroPedido: number,
+  zonaNombre?: string
 ): string {
-  const mensaje = armarMensaje(items, nombre, entrega, direccion, notas, numeroPedido);
+  const mensaje = armarMensaje(items, nombre, entrega, direccion, notas, numeroPedido, zonaNombre);
   return `https://wa.me/${config.whatsapp}?text=${encodeURIComponent(mensaje)}`;
 }

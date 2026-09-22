@@ -4,6 +4,7 @@ import { supabase } from "../../lib/supabase";
 import { AdminLogin } from "./AdminLogin";
 import { AdminLayout } from "./AdminLayout";
 import { Cosechas } from "./Cosechas";
+import { Productos } from "./Productos";
 import { Pedidos } from "./Pedidos";
 import { Clientes } from "./Clientes";
 import { Configuracion } from "./Configuracion";
@@ -30,7 +31,7 @@ export function AdminApp() {
     return (
       <Routes>
         <Route path="login" element={<AdminLogin />} />
-        <Route path="*" element={<Navigate to="login" replace />} />
+        <Route path="*" element={<Navigate to="/admin/login" replace />} />
       </Routes>
     );
   }
@@ -38,12 +39,13 @@ export function AdminApp() {
   return (
     <Routes>
       <Route element={<AdminLayout user={user} />}>
-        <Route index element={<Navigate to="cosechas" replace />} />
+        <Route index element={<Navigate to="/admin/cosechas" replace />} />
         <Route path="cosechas" element={<Cosechas />} />
+        <Route path="productos" element={<Productos />} />
         <Route path="pedidos" element={<Pedidos />} />
         <Route path="clientes" element={<Clientes />} />
         <Route path="configuracion" element={<Configuracion />} />
-        <Route path="*" element={<Navigate to="cosechas" replace />} />
+        <Route path="*" element={<Navigate to="/admin/cosechas" replace />} />
       </Route>
     </Routes>
   );
