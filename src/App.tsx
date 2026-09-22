@@ -4,6 +4,8 @@ import { Header } from "./components/Header";
 import { ListaProductos } from "./components/ListaProductos";
 import { BarraTotal } from "./components/BarraTotal";
 import { HojaCierre } from "./components/HojaCierre";
+import { SinCosecha } from "./components/SinCosecha";
+import { Avisame } from "./components/Avisame";
 import { useCarrito } from "./hooks/useCarrito";
 import { useCosechaActiva } from "./hooks/useCosechaActiva";
 import { useZonas } from "./hooks/useZonas";
@@ -13,13 +15,14 @@ import styles from "./App.module.css";
 const AdminApp = lazy(() => import("./pages/admin/AdminApp").then((m) => ({ default: m.AdminApp })));
 
 function Tienda() {
-  const { cosecha, loading } = useCosechaActiva();
+  const { cosechaActiva, proximaCosecha, loading } = useCosechaActiva();
   const { zonas } = useZonas();
   const [hojaAbierta, setHojaAbierta] = useState(false);
+  const [avisameAbierto, setAvisameAbierto] = useState(false);
 
   const productos: ProductoUI[] = useMemo(() => {
-    if (!cosecha?.items?.length) return [];
-    return cosecha.items
+    if (!cosechaActiva?.items?.length) return [];
+    return cosechaActiva.items
       .filter((item) => item.producto?.activo)
       .map((item) => ({
         id: item.producto!.id,
@@ -29,11 +32,11 @@ function Tienda() {
         emoji: item.producto!.emoji ?? "🌿",
         maxPorProducto: item.producto!.max_por_producto,
       }));
-  }, [cosecha]);
+  }, [cosechaActiva]);
 
   const { items, agregar, quitar, getCantidad, subtotal, totalUnidades } = useCarrito(productos);
 
-  const proximaFecha = cosecha?.fechas
+  const proximaFecha = cosechaActiva?.fechas
     ?.filter((f) => f.activa)
     .sort((a, b) => a.fecha.localeCompare(b.fecha))
     .find((f) => f.fecha >= new Date().toISOString().split("T")[0])
@@ -44,7 +47,7 @@ function Tienda() {
       <div className={styles.app}>
         <Header />
         <main className={styles.main} style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "60vh" }}>
-          <p style={{ color: "var(--color-texto-sec)", fontSize: "0.9rem" }}>Cargando cosecha…</p>
+          <p style={{ color: "var(--color-texto-sec)", fontSize: "0.9rem" }}>Cargando…</p>
         </main>
       </div>
     );
@@ -52,7 +55,10 @@ function Tienda() {
 
   return (
     <div className={styles.app}>
-      <Header fechaEntrega={proximaFecha} />
+      <Header
+        nombreCosecha={cosechaActiva?.nombre}
+        fechaEntrega={proximaFecha}
+      />
       <main className={styles.main}>
         {productos.length > 0 ? (
           <ListaProductos
@@ -62,10 +68,10 @@ function Tienda() {
             onQuitar={quitar}
           />
         ) : (
-          <div className={styles.sinCosecha}>
-            <p className={styles.sinCosechaTitulo}>No hay cosecha disponible</p>
-            <p className={styles.sinCosechaDesc}>¡Pronto abrimos los pedidos de la próxima entrega!</p>
-          </div>
+          <SinCosecha
+            proximaCosecha={proximaCosecha}
+            onAvisame={() => setAvisameAbierto(true)}
+          />
         )}
       </main>
 
@@ -84,6 +90,10 @@ function Tienda() {
           zonas={zonas}
           onCerrar={() => setHojaAbierta(false)}
         />
+      )}
+
+      {avisameAbierto && (
+        <Avisame onCerrar={() => setAvisameAbierto(false)} />
       )}
     </div>
   );
