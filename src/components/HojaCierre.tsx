@@ -98,6 +98,10 @@ export function HojaCierre({ items, subtotal, zonas, fechas, cosechaId, onCerrar
     if (!pedidoCompleto || enviando || entrega === null) return;
     setEnviando(true);
 
+    // Abrir la ventana SINCRÓNICAMENTE antes de cualquier await.
+    // Safari bloquea window.open() si se llama después de un await (pierde el contexto de user gesture).
+    const waWindow = window.open("", "_blank");
+
     saveCliente({
       nombre: nombre.trim(),
       direccion: direccion.trim(),
@@ -168,10 +172,15 @@ export function HojaCierre({ items, subtotal, zonas, fechas, cosechaId, onCerrar
       items, nombre.trim(), entrega, direccion.trim(), notas,
       numero, zonaSeleccionada?.nombre, fechaSeleccionada?.fecha,
     );
-    window.open(
-      `https://wa.me/${config.whatsapp}?text=${encodeURIComponent(mensaje)}`,
-      "_blank", "noopener,noreferrer"
-    );
+    const waUrl = `https://wa.me/${config.whatsapp}?text=${encodeURIComponent(mensaje)}`;
+
+    // Asignar la URL final a la ventana ya abierta
+    if (waWindow) {
+      waWindow.location.href = waUrl;
+    } else {
+      // Fallback: si el bloqueador cerró la ventana, navegar en el mismo tab
+      window.location.href = waUrl;
+    }
 
     onEnviado({
       numero,
