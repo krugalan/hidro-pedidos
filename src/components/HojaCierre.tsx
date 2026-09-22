@@ -215,47 +215,47 @@ export function HojaCierre({ items, subtotal, zonas, fechas, cosechaId, onCerrar
           </ul>
 
           {/* Fecha de entrega */}
-          {fechasActivas.length > 0 && (
-            <div className={styles.seccionFecha}>
-              <p className={styles.seccionFechaLabel}>📅 Fecha de entrega</p>
+          <div className={styles.seccionFecha}>
+            <p className={styles.seccionFechaLabel}>📅 Fecha de entrega</p>
 
-              {eligiendoFecha ? (
-                <div className={styles.fechaOpciones}>
-                  {fechasActivas.map((f) => (
-                    <button
-                      key={f.id}
-                      className={`${styles.fechaOpcion} ${f.id === fechaId ? styles.fechaOpcionActiva : ""}`}
-                      onClick={() => { setFechaId(f.id); setEligiendoFecha(false); }}
-                      type="button"
-                    >
-                      {fechaLarga(f.fecha)}
-                      {f.hora_inicio && f.hora_fin && (
-                        <span className={styles.fechaHora}>{f.hora_inicio.slice(0, 5)}–{f.hora_fin.slice(0, 5)}</span>
-                      )}
-                    </button>
-                  ))}
-                </div>
-              ) : (
-                <div className={styles.fechaSeleccionadaFila}>
-                  <span className={styles.fechaSeleccionadaTexto}>
-                    {fechaSeleccionada ? fechaLarga(fechaSeleccionada.fecha) : "Sin fecha"}
-                    {fechaSeleccionada?.hora_inicio && fechaSeleccionada?.hora_fin && (
-                      <span className={styles.fechaHora}> · {fechaSeleccionada.hora_inicio.slice(0, 5)}–{fechaSeleccionada.hora_fin.slice(0, 5)}</span>
+            {fechasActivas.length === 0 ? (
+              <p className={styles.sinFecha}>Pronto confirmamos la fecha de entrega.</p>
+            ) : eligiendoFecha ? (
+              <div className={styles.fechaOpciones}>
+                {fechasActivas.map((f) => (
+                  <button
+                    key={f.id}
+                    className={`${styles.fechaOpcion} ${f.id === fechaId ? styles.fechaOpcionActiva : ""}`}
+                    onClick={() => { setFechaId(f.id); setEligiendoFecha(false); }}
+                    type="button"
+                  >
+                    {fechaLarga(f.fecha)}
+                    {f.hora_inicio && f.hora_fin && (
+                      <span className={styles.fechaHora}>{f.hora_inicio.slice(0, 5)}–{f.hora_fin.slice(0, 5)}</span>
                     )}
-                  </span>
-                  {fechasActivas.length > 1 && (
-                    <button
-                      className={styles.btnCambiarFecha}
-                      onClick={() => setEligiendoFecha(true)}
-                      type="button"
-                    >
-                      Elegir otra fecha
-                    </button>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className={styles.fechaSeleccionadaFila}>
+                <span className={styles.fechaSeleccionadaTexto}>
+                  {fechaSeleccionada ? fechaLarga(fechaSeleccionada.fecha) : "Sin fecha"}
+                  {fechaSeleccionada?.hora_inicio && fechaSeleccionada?.hora_fin && (
+                    <span className={styles.fechaHora}> · {fechaSeleccionada.hora_inicio.slice(0, 5)}–{fechaSeleccionada.hora_fin.slice(0, 5)}</span>
                   )}
-                </div>
-              )}
-            </div>
-          )}
+                </span>
+                {fechasActivas.length > 1 && (
+                  <button
+                    className={styles.btnCambiarFecha}
+                    onClick={() => setEligiendoFecha(true)}
+                    type="button"
+                  >
+                    Elegir otra fecha
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
 
           <fieldset className={styles.fieldset}>
             <legend className={styles.legend}>¿Cómo lo recibís?</legend>

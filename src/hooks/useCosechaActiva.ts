@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
-import type { Cosecha } from "../types/entities";
+import type { Cosecha, FechaEntrega } from "../types/entities";
 
 export function useCosechaActiva() {
   const [cosechaActiva, setCosechaActiva] = useState<Cosecha | null>(null);
@@ -26,11 +26,30 @@ export function useCosechaActiva() {
         .order("fecha_cosecha", { ascending: true })
         .limit(1)
         .maybeSingle(),
-    ]).then(([{ data: activa }, { data: proxima }]) => {
-      setCosechaActiva(activa as Cosecha | null);
-      setProximaCosecha(proxima as Cosecha | null);
-      setLoading(false);
-    });
+    ])
+      .then(async ([{ data: activaRaw }, { data: proxima }]) => {
+        let activa = activaRaw as Cosecha | null;
+
+        // Si la cosecha cargó pero el join de fechas no trajo datos (puede pasar
+        // en el primer request tras un cold start de Supabase), los buscamos aparte.
+        if (activa && !activa.fechas?.length) {
+          const { data: fechas } = await supabase
+            .from("fechas_entrega")
+            .select("*")
+            .eq("cosecha_id", activa.id)
+            .order("fecha", { ascending: true });
+          if (fechas?.length) {
+            activa = { ...activa, fechas: fechas as FechaEntrega[] };
+          }
+        }
+
+        setCosechaActiva(activa);
+        setProximaCosecha(proxima as Cosecha | null);
+        setLoading(false);
+      })
+      .catch(() => {
+        setLoading(false);
+      });
   }, []);
 
   return { cosechaActiva, proximaCosecha, loading };

@@ -143,6 +143,13 @@
   letter-spacing: 0.04em;
 }
 
+.sinFecha {
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  color: var(--color-texto-sec);
+  margin: 0;
+}
+
 .fechaSeleccionadaFila {
   display: flex;
   align-items: center;
