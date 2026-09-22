@@ -70,6 +70,8 @@ export interface Pedido {
   direccion_id?: string;
   cosecha_id?: string;
   fecha_entrega_id?: string;
+  zona_id?: string;
+  direccion_texto?: string;
   tipo_entrega: 'domicilio' | 'retiro';
   estado: 'pendiente' | 'confirmado' | 'entregado' | 'cancelado';
   notas?: string;
@@ -79,6 +81,8 @@ export interface Pedido {
   created_at: string;
   items?: PedidoItem[];
   cliente?: Cliente;
+  zona?: Zona;
+  fecha?: { id: string; fecha: string; hora_inicio?: string; hora_fin?: string };
 }
 
 export interface PedidoItem {

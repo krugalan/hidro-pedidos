@@ -1,17 +1,20 @@
 import { useEffect, useRef, useState } from "react";
 import config from "../config";
 import { getCliente, saveCliente } from "../lib/cliente";
-import { siguienteNumeroPedido } from "../lib/numeroPedido";
-import { armarLinkWhatsApp } from "../lib/whatsapp";
-import type { ItemCarrito, TipoEntrega } from "../types";
-import type { Zona } from "../types/entities";
+import { armarMensaje } from "../lib/whatsapp";
+import { supabase } from "../lib/supabase";
+import type { ItemCarrito, TipoEntrega, PedidoResumen } from "../types";
+import type { Zona, FechaEntrega } from "../types/entities";
 import styles from "./HojaCierre.module.css";
 
 interface Props {
   items: ItemCarrito[];
   subtotal: number;
   zonas: Zona[];
+  fechas: FechaEntrega[];
+  cosechaId?: string;
   onCerrar: () => void;
+  onEnviado: (resumen: PedidoResumen) => void;
 }
 
 const formatPeso = (monto: number) =>
@@ -21,10 +24,14 @@ const formatPeso = (monto: number) =>
     maximumFractionDigits: 0,
   }).format(monto);
 
-export function HojaCierre({ items, subtotal, zonas, onCerrar }: Props) {
+const fechaLarga = (iso: string) =>
+  new Date(iso + "T00:00:00").toLocaleDateString("es-AR", {
+    weekday: "long", day: "numeric", month: "long",
+  });
+
+export function HojaCierre({ items, subtotal, zonas, fechas, cosechaId, onCerrar, onEnviado }: Props) {
   const dialogRef = useRef<HTMLDialogElement>(null);
-  const [confirmacion, setConfirmacion] = useState(false);
-  const [numeroPedido] = useState(() => siguienteNumeroPedido());
+  const [enviando, setEnviando] = useState(false);
 
   const clienteGuardado = getCliente();
 
@@ -34,6 +41,16 @@ export function HojaCierre({ items, subtotal, zonas, onCerrar }: Props) {
   const [entrega, setEntrega] = useState<TipoEntrega>(clienteGuardado?.entrega ?? null);
   const [zonaId, setZonaId] = useState(clienteGuardado?.zona_id ?? "");
   const [notas, setNotas] = useState("");
+
+  const hoy = new Date().toISOString().split("T")[0];
+  const fechasActivas = fechas
+    .filter((f) => f.activa && f.fecha >= hoy)
+    .sort((a, b) => a.fecha.localeCompare(b.fecha));
+
+  const [fechaId, setFechaId] = useState(fechasActivas[0]?.id ?? "");
+  const [eligiendoFecha, setEligiendoFecha] = useState(false);
+
+  const fechaSeleccionada = fechasActivas.find((f) => f.id === fechaId);
 
   const zonasDelivery = zonas.filter((z) => z.tipo === "delivery");
   const zonasRetiro = zonas.filter((z) => z.tipo === "retiro");
@@ -47,26 +64,21 @@ export function HojaCierre({ items, subtotal, zonas, onCerrar }: Props) {
     return () => dialog.removeEventListener("close", handleClose);
   }, [onCerrar]);
 
-  // Reset zona when switching delivery type
   useEffect(() => { setZonaId(""); }, [entrega]);
 
   const cerrar = () => dialogRef.current?.close();
-  const handleBackdrop = (e: React.MouseEvent<HTMLDialogElement>) => {
-    if (e.target === dialogRef.current) cerrar();
-  };
 
   const zonaSeleccionada = zonas.find((z) => z.id === zonaId);
   const nombreValido = nombre.trim().length >= 2;
   const direccionValida = direccion.trim().length >= 5;
   const necesitaDireccion = entrega === "domicilio";
-  const necesitaZona = entrega !== null && (
-    (entrega === "domicilio" && zonasDelivery.length > 0) ||
-    (entrega === "retiro" && zonasRetiro.length > 0)
-  );
-  const zonaValida = !necesitaZona || zonaId !== "";
+  // La zona es siempre obligatoria una vez elegido el tipo de entrega
+  const zonaValida = entrega === null || zonaId !== "";
+  const fechaValida = fechasActivas.length === 0 || fechaId !== "";
 
   const pedidoCompleto =
     items.length > 0 &&
+    fechaValida &&
     entrega !== null &&
     nombreValido &&
     zonaValida &&
@@ -76,17 +88,16 @@ export function HojaCierre({ items, subtotal, zonas, onCerrar }: Props) {
 
   let mensajeFaltante = "";
   if (items.length === 0) mensajeFaltante = "Agregá al menos un producto.";
+  else if (!fechaValida) mensajeFaltante = "Elegí una fecha de entrega.";
   else if (entrega === null) mensajeFaltante = "Elegí envío o retiro.";
   else if (!nombreValido) mensajeFaltante = "Completá tu nombre.";
   else if (necesitaDireccion && !direccionValida) mensajeFaltante = "Completá la dirección de entrega.";
   else if (!zonaValida) mensajeFaltante = "Seleccioná una zona.";
 
-  const link = pedidoCompleto
-    ? armarLinkWhatsApp(items, nombre.trim(), entrega, direccion.trim(), notas, numeroPedido, zonaSeleccionada?.nombre)
-    : "#";
+  const handleEnviar = async () => {
+    if (!pedidoCompleto || enviando || entrega === null) return;
+    setEnviando(true);
 
-  const handleEnviar = (e: React.MouseEvent) => {
-    if (!pedidoCompleto) { e.preventDefault(); return; }
     saveCliente({
       nombre: nombre.trim(),
       direccion: direccion.trim(),
@@ -95,17 +106,92 @@ export function HojaCierre({ items, subtotal, zonas, onCerrar }: Props) {
       zona_id: zonaId || undefined,
       zona_nombre: zonaSeleccionada?.nombre,
     });
-    setConfirmacion(true);
+
+    let clienteId: string | undefined;
+    let numero = 0;
+
+    try {
+      if (email.trim()) {
+        const { data } = await supabase
+          .from("clientes")
+          .upsert({ nombre: nombre.trim(), email: email.trim() }, { onConflict: "email" })
+          .select("id")
+          .maybeSingle();
+        clienteId = data?.id ?? undefined;
+      } else {
+        const { data } = await supabase
+          .from("clientes")
+          .insert({ nombre: nombre.trim() })
+          .select("id")
+          .maybeSingle();
+        clienteId = data?.id ?? undefined;
+      }
+
+      const costoEnvio = entrega === "domicilio" ? config.envioCosto : 0;
+      const { data: pedidoData } = await supabase
+        .from("pedidos")
+        .insert({
+          cliente_id: clienteId ?? null,
+          cosecha_id: cosechaId ?? null,
+          fecha_entrega_id: fechaId || null,
+          zona_id: zonaId || null,
+          direccion_texto: entrega === "domicilio" ? direccion.trim() : null,
+          tipo_entrega: entrega,
+          estado: "pendiente",
+          subtotal,
+          costo_envio: costoEnvio,
+          total,
+          notas: notas.trim() || null,
+        })
+        .select("id, numero")
+        .maybeSingle();
+
+      numero = pedidoData?.numero ?? 0;
+
+      if (pedidoData?.id) {
+        await supabase.from("pedido_items").insert(
+          items.map((item) => ({
+            pedido_id: pedidoData.id,
+            producto_id: item.id,
+            nombre: item.nombre,
+            precio_unitario: item.precio,
+            cantidad: item.cantidad,
+            subtotal: item.precio * item.cantidad,
+          }))
+        );
+      }
+    } catch {
+      numero = 0;
+    }
+
+    const mensaje = armarMensaje(
+      items, nombre.trim(), entrega, direccion.trim(), notas,
+      numero, zonaSeleccionada?.nombre, fechaSeleccionada?.fecha,
+    );
+    window.open(
+      `https://wa.me/${config.whatsapp}?text=${encodeURIComponent(mensaje)}`,
+      "_blank", "noopener,noreferrer"
+    );
+
+    onEnviado({
+      numero,
+      nombre: nombre.trim(),
+      items,
+      subtotal,
+      total,
+      entrega,
+      fechaIso: fechaSeleccionada?.fecha,
+      zonaSeleccionada: zonaSeleccionada?.nombre,
+    });
+
+    dialogRef.current?.close();
   };
 
   return (
-    <dialog ref={dialogRef} className={styles.dialog} onClick={handleBackdrop} aria-labelledby="hoja-titulo">
+    <dialog ref={dialogRef} className={styles.dialog} aria-labelledby="hoja-titulo">
       <div className={styles.hoja}>
         <div className={styles.cabecera}>
-          <div>
-            <h2 id="hoja-titulo" className={styles.titulo}>Tu pedido</h2>
-            <span className={styles.numeroPedido}>#{numeroPedido}</span>
-          </div>
+          <h2 id="hoja-titulo" className={styles.titulo}>Tu pedido</h2>
           <button className={styles.btnCerrar} onClick={cerrar} aria-label="Cerrar">✕</button>
         </div>
 
@@ -118,6 +204,49 @@ export function HojaCierre({ items, subtotal, zonas, onCerrar }: Props) {
               </li>
             ))}
           </ul>
+
+          {/* Fecha de entrega */}
+          {fechasActivas.length > 0 && (
+            <div className={styles.seccionFecha}>
+              <p className={styles.seccionFechaLabel}>📅 Fecha de entrega</p>
+
+              {eligiendoFecha ? (
+                <div className={styles.fechaOpciones}>
+                  {fechasActivas.map((f) => (
+                    <button
+                      key={f.id}
+                      className={`${styles.fechaOpcion} ${f.id === fechaId ? styles.fechaOpcionActiva : ""}`}
+                      onClick={() => { setFechaId(f.id); setEligiendoFecha(false); }}
+                      type="button"
+                    >
+                      {fechaLarga(f.fecha)}
+                      {f.hora_inicio && f.hora_fin && (
+                        <span className={styles.fechaHora}>{f.hora_inicio.slice(0, 5)}–{f.hora_fin.slice(0, 5)}</span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className={styles.fechaSeleccionadaFila}>
+                  <span className={styles.fechaSeleccionadaTexto}>
+                    {fechaSeleccionada ? fechaLarga(fechaSeleccionada.fecha) : "Sin fecha"}
+                    {fechaSeleccionada?.hora_inicio && fechaSeleccionada?.hora_fin && (
+                      <span className={styles.fechaHora}> · {fechaSeleccionada.hora_inicio.slice(0, 5)}–{fechaSeleccionada.hora_fin.slice(0, 5)}</span>
+                    )}
+                  </span>
+                  {fechasActivas.length > 1 && (
+                    <button
+                      className={styles.btnCambiarFecha}
+                      onClick={() => setEligiendoFecha(true)}
+                      type="button"
+                    >
+                      Elegir otra fecha
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
 
           <fieldset className={styles.fieldset}>
             <legend className={styles.legend}>¿Cómo lo recibís?</legend>
@@ -137,11 +266,10 @@ export function HojaCierre({ items, subtotal, zonas, onCerrar }: Props) {
               </label>
             </div>
 
-            {/* Zona de retiro */}
             {entrega === "retiro" && zonasRetiro.length > 0 && (
               <div className={styles.campo} style={{ marginTop: "0.75rem" }}>
                 <label className={styles.label} htmlFor="zona-retiro">Punto de retiro</label>
-                <select id="zona-retiro" className={styles.input} value={zonaId} onChange={(e) => setZonaId(e.target.value)} required>
+                <select id="zona-retiro" className={styles.input} value={zonaId} onChange={(e) => setZonaId(e.target.value)}>
                   <option value="">Seleccioná un punto…</option>
                   {zonasRetiro.map((z) => (
                     <option key={z.id} value={z.id}>{z.nombre}</option>
@@ -150,11 +278,10 @@ export function HojaCierre({ items, subtotal, zonas, onCerrar }: Props) {
               </div>
             )}
 
-            {/* Zona de delivery */}
             {entrega === "domicilio" && zonasDelivery.length > 0 && (
               <div className={styles.campo} style={{ marginTop: "0.75rem" }}>
                 <label className={styles.label} htmlFor="zona-delivery">Zona</label>
-                <select id="zona-delivery" className={styles.input} value={zonaId} onChange={(e) => setZonaId(e.target.value)} required>
+                <select id="zona-delivery" className={styles.input} value={zonaId} onChange={(e) => setZonaId(e.target.value)}>
                   <option value="">Seleccioná tu zona…</option>
                   {zonasDelivery.map((z) => (
                     <option key={z.id} value={z.id}>{z.nombre}</option>
@@ -198,11 +325,6 @@ export function HojaCierre({ items, subtotal, zonas, onCerrar }: Props) {
             y que los precios vigentes en ese momento son los que aplican.
           </div>
 
-          {confirmacion && (
-            <div className={styles.confirmacion} role="status">
-              Se abrió WhatsApp con tu pedido. Tocá enviar en el chat para confirmarlo.
-            </div>
-          )}
         </div>
 
         <div className={styles.pie}>
@@ -211,20 +333,19 @@ export function HojaCierre({ items, subtotal, zonas, onCerrar }: Props) {
             <span className={styles.totalMonto}>{formatPeso(total)}</span>
           </div>
 
-          <a
-            href={pedidoCompleto ? link : undefined}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={`${styles.btnWhatsApp} ${!pedidoCompleto ? styles.btnDeshabilitado : ""}`}
-            aria-disabled={!pedidoCompleto}
-            onClick={handleEnviar}
-            role="button"
-          >
-            Enviar pedido por WhatsApp
-          </a>
-
-          {mensajeFaltante && (
-            <p className={styles.faltante} aria-live="polite" role="status">{mensajeFaltante}</p>
+          {pedidoCompleto ? (
+            <button
+              className={styles.btnWhatsApp}
+              onClick={handleEnviar}
+              disabled={enviando}
+              type="button"
+            >
+              {enviando ? "Enviando…" : "Enviar pedido por WhatsApp"}
+            </button>
+          ) : (
+            <p className={styles.faltante} aria-live="polite" role="status">
+              {mensajeFaltante}
+            </p>
           )}
         </div>
       </div>

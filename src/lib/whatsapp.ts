@@ -19,9 +19,12 @@ export function armarMensaje(
   direccion: string,
   notas: string,
   numeroPedido: number,
-  zonaNombre?: string
+  zonaNombre?: string,
+  fechaIso?: string
 ): string {
-  const fecha = proximaEntrega();
+  const fecha = fechaIso
+    ? new Date(fechaIso + "T00:00:00").toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long" })
+    : proximaEntrega();
   const subtotal = items.reduce((acc, i) => acc + i.precio * i.cantidad, 0);
   const total = entrega === "domicilio" ? subtotal + config.envioCosto : subtotal;
 
@@ -58,8 +61,9 @@ export function armarLinkWhatsApp(
   direccion: string,
   notas: string,
   numeroPedido: number,
-  zonaNombre?: string
+  zonaNombre?: string,
+  fechaIso?: string
 ): string {
-  const mensaje = armarMensaje(items, nombre, entrega, direccion, notas, numeroPedido, zonaNombre);
+  const mensaje = armarMensaje(items, nombre, entrega, direccion, notas, numeroPedido, zonaNombre, fechaIso);
   return `https://wa.me/${config.whatsapp}?text=${encodeURIComponent(mensaje)}`;
 }

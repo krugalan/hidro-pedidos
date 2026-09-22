@@ -25,3 +25,14 @@ export interface ProductoUI {
   emoji: string;
   maxPorProducto: number;
 }
+
+export interface PedidoResumen {
+  numero: number;
+  nombre: string;
+  items: ItemCarrito[];
+  subtotal: number;
+  total: number;
+  entrega: TipoEntrega;
+  fechaIso?: string;
+  zonaSeleccionada?: string;
+}

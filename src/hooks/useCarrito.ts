@@ -48,5 +48,7 @@ export function useCarrito(productos: ProductoUI[]) {
   const subtotal = items.reduce((acc, i) => acc + i.precio * i.cantidad, 0);
   const totalUnidades = items.reduce((acc, i) => acc + i.cantidad, 0);
 
-  return { items, agregar, quitar, getCantidad, subtotal, totalUnidades };
+  const limpiar = useCallback(() => setItems([]), []);
+
+  return { items, agregar, quitar, getCantidad, subtotal, totalUnidades, limpiar };
 }
