@@ -68,15 +68,31 @@ export function Cosechas() {
   };
 
   const eliminarCosecha = async (cosecha: Cosecha) => {
-    const { count } = await supabase
+    // Verificar si hay pedidos activos (pendientes o entregados)
+    const { count: activos } = await supabase
       .from("pedidos")
       .select("id", { count: "exact", head: true })
-      .eq("cosecha_id", cosecha.id);
+      .eq("cosecha_id", cosecha.id)
+      .in("estado", ["pendiente", "entregado"]);
 
-    if ((count ?? 0) > 0) {
-      setError(`"${cosecha.nombre}" tiene pedidos asociados y no puede eliminarse.`);
+    if ((activos ?? 0) > 0) {
+      setError(`"${cosecha.nombre}" tiene pedidos activos y no puede eliminarse.`);
       return;
     }
+
+    // Obtener IDs de pedidos cancelados para borrarlos en cascada
+    const { data: cancelados } = await supabase
+      .from("pedidos")
+      .select("id")
+      .eq("cosecha_id", cosecha.id)
+      .eq("estado", "cancelado");
+
+    if (cancelados?.length) {
+      const ids = cancelados.map((p) => p.id);
+      await supabase.from("pedido_items").delete().in("pedido_id", ids);
+      await supabase.from("pedidos").delete().in("id", ids);
+    }
+
     await supabase.from("cosechas").delete().eq("id", cosecha.id);
     cargar();
   };
