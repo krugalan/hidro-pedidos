@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import config from "../config";
 import { getCliente, saveCliente } from "../lib/cliente";
+import { siguienteNumeroPedido } from "../lib/numeroPedido";
 import { armarLinkWhatsApp } from "../lib/whatsapp";
 import type { ItemCarrito, TipoEntrega } from "../types";
 import styles from "./HojaCierre.module.css";
@@ -22,9 +23,13 @@ export function HojaCierre({ items, subtotal, onCerrar }: Props) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [confirmacion, setConfirmacion] = useState(false);
 
+  // El número de pedido se genera una sola vez al montar la hoja
+  const [numeroPedido] = useState(() => siguienteNumeroPedido());
+
   const clienteGuardado = getCliente();
 
   const [nombre, setNombre] = useState(clienteGuardado?.nombre ?? "");
+  const [email, setEmail] = useState(clienteGuardado?.email ?? "");
   const [direccion, setDireccion] = useState(clienteGuardado?.direccion ?? "");
   const [entrega, setEntrega] = useState<TipoEntrega>(clienteGuardado?.entrega ?? null);
   const [notas, setNotas] = useState("");
@@ -64,7 +69,7 @@ export function HojaCierre({ items, subtotal, onCerrar }: Props) {
   else if (necesitaDireccion && !direccionValida) mensajeFaltante = "Completá la dirección de entrega.";
 
   const link = pedidoCompleto
-    ? armarLinkWhatsApp(items, nombre.trim(), entrega, direccion.trim(), notas)
+    ? armarLinkWhatsApp(items, nombre.trim(), entrega, direccion.trim(), notas, numeroPedido)
     : "#";
 
   const handleEnviar = (e: React.MouseEvent) => {
@@ -72,7 +77,7 @@ export function HojaCierre({ items, subtotal, onCerrar }: Props) {
       e.preventDefault();
       return;
     }
-    saveCliente({ nombre: nombre.trim(), direccion: direccion.trim(), entrega });
+    saveCliente({ nombre: nombre.trim(), direccion: direccion.trim(), entrega, email: email.trim() || undefined });
     setConfirmacion(true);
   };
 
@@ -86,7 +91,10 @@ export function HojaCierre({ items, subtotal, onCerrar }: Props) {
       <div className={styles.hoja}>
         {/* Cabecera */}
         <div className={styles.cabecera}>
-          <h2 id="hoja-titulo" className={styles.titulo}>Tu pedido</h2>
+          <div>
+            <h2 id="hoja-titulo" className={styles.titulo}>Tu pedido</h2>
+            <span className={styles.numeroPedido}>#{numeroPedido}</span>
+          </div>
           <button className={styles.btnCerrar} onClick={cerrar} aria-label="Cerrar">
             ✕
           </button>
@@ -161,6 +169,21 @@ export function HojaCierre({ items, subtotal, onCerrar }: Props) {
               />
             </div>
 
+            <div className={styles.campo}>
+              <label className={styles.label} htmlFor="email">
+                Email <span className={styles.opcional}>(opcional)</span>
+              </label>
+              <input
+                id="email"
+                type="email"
+                className={styles.input}
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                autoComplete="email"
+                placeholder="para recibir novedades de la cosecha"
+              />
+            </div>
+
             {necesitaDireccion && (
               <div className={styles.campo}>
                 <label className={styles.label} htmlFor="direccion">
@@ -196,6 +219,12 @@ export function HojaCierre({ items, subtotal, onCerrar }: Props) {
                 placeholder="Timbre, piso, referencia…"
               />
             </div>
+          </div>
+
+          {/* Disclaimer */}
+          <div className={styles.disclaimer}>
+            Tené en cuenta que algunos productos pueden no estar disponibles al momento del retiro,
+            y que los precios vigentes en ese momento son los que aplican.
           </div>
 
           {confirmacion && (

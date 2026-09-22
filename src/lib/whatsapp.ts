@@ -9,12 +9,16 @@ const formatPeso = (monto: number) =>
     maximumFractionDigits: 0,
   }).format(monto);
 
+const DISCLAIMER =
+  "_Al confirmar este pedido aceptás que puede haber artículos sin stock al momento del retiro y que los precios vigentes en ese momento son los que aplican._\n*Validaremos los montos al momento de la entrega.*";
+
 export function armarMensaje(
   items: ItemCarrito[],
   nombre: string,
   entrega: TipoEntrega,
   direccion: string,
-  notas: string
+  notas: string,
+  numeroPedido: number
 ): string {
   const fecha = proximaEntrega();
   const subtotal = items.reduce((acc, i) => acc + i.precio * i.cantidad, 0);
@@ -24,7 +28,7 @@ export function armarMensaje(
     .map((i) => `• ${i.cantidad} × ${i.nombre} — ${formatPeso(i.precio * i.cantidad)}`)
     .join("\n");
 
-  let msg = `Hola! Soy ${nombre}. Quiero hacer este pedido para el ${fecha}:\n\n${lineas}\n\nSubtotal: ${formatPeso(subtotal)}`;
+  let msg = `Hola! Soy ${nombre}. Pedido #${numeroPedido} para el ${fecha}:\n\n${lineas}\n\nSubtotal: ${formatPeso(subtotal)}`;
 
   if (entrega === "domicilio") {
     msg += `\nEnvío a domicilio: ${formatPeso(config.envioCosto)}`;
@@ -39,6 +43,8 @@ export function armarMensaje(
     msg += `\n\nNotas: ${notas.trim()}`;
   }
 
+  msg += `\n\n${DISCLAIMER}`;
+
   return msg;
 }
 
@@ -47,8 +53,9 @@ export function armarLinkWhatsApp(
   nombre: string,
   entrega: TipoEntrega,
   direccion: string,
-  notas: string
+  notas: string,
+  numeroPedido: number
 ): string {
-  const mensaje = armarMensaje(items, nombre, entrega, direccion, notas);
+  const mensaje = armarMensaje(items, nombre, entrega, direccion, notas, numeroPedido);
   return `https://wa.me/${config.whatsapp}?text=${encodeURIComponent(mensaje)}`;
 }

@@ -4,6 +4,7 @@ export interface Producto {
   detalle: string;
   precio: number;
   emoji: string;
+  maxPorProducto?: number;
 }
 
 interface Config {

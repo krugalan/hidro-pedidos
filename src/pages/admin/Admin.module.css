@@ -1,0 +1,713 @@
+/* =============================================
+   Admin — Layout general
+   ============================================= */
+
+.layout {
+  display: flex;
+  min-height: 100dvh;
+  background: #f6f7f9;
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+/* Sidebar */
+.sidebar {
+  width: 220px;
+  background: #1a1f2e;
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  height: 100dvh;
+}
+
+.sidebarHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1.25rem 1rem 1rem;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+
+.sidebarEmoji {
+  font-size: 1.5rem;
+}
+
+.sidebarTitle {
+  font-weight: 700;
+  font-size: 1rem;
+  letter-spacing: 0.02em;
+}
+
+.nav {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0.75rem 0.5rem;
+}
+
+.navLink {
+  display: block;
+  padding: 0.625rem 0.75rem;
+  border-radius: 0.5rem;
+  color: rgba(255,255,255,0.65);
+  text-decoration: none;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: background 0.12s, color 0.12s;
+}
+
+.navLink:hover {
+  background: rgba(255,255,255,0.06);
+  color: #fff;
+}
+
+.navLinkActivo {
+  background: rgba(74,222,128,0.15);
+  color: #4ade80;
+}
+
+.navLinkActivo:hover {
+  background: rgba(74,222,128,0.2);
+  color: #4ade80;
+}
+
+.sidebarFooter {
+  padding: 0.875rem 1rem;
+  border-top: 1px solid rgba(255,255,255,0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.sidebarUser {
+  font-size: 0.75rem;
+  color: rgba(255,255,255,0.4);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.btnLogout {
+  background: rgba(255,255,255,0.07);
+  border: none;
+  border-radius: 0.375rem;
+  color: rgba(255,255,255,0.55);
+  padding: 0.4rem 0.75rem;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: background 0.12s;
+  text-align: left;
+}
+
+.btnLogout:hover {
+  background: rgba(255,255,255,0.12);
+  color: #fff;
+}
+
+/* Contenido principal */
+.contenido {
+  flex: 1;
+  overflow-y: auto;
+  min-width: 0;
+}
+
+/* =============================================
+   Login
+   ============================================= */
+
+.loginPage {
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f6f7f9;
+  padding: 1rem;
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+.loginCard {
+  background: #fff;
+  border-radius: 1rem;
+  padding: 2rem;
+  width: 100%;
+  max-width: 360px;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+}
+
+.loginHeader {
+  text-align: center;
+  margin-bottom: 1.5rem;
+}
+
+.loginEmoji {
+  font-size: 2.5rem;
+  display: block;
+  margin-bottom: 0.5rem;
+}
+
+.loginTitulo {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #111;
+  margin: 0 0 0.25rem;
+}
+
+.loginSub {
+  font-size: 0.875rem;
+  color: #666;
+  margin: 0;
+}
+
+.loginForm {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.loginError {
+  font-size: 0.875rem;
+  color: #dc2626;
+  background: #fef2f2;
+  border-radius: 0.5rem;
+  padding: 0.625rem 0.75rem;
+  margin: 0;
+}
+
+.btnLogin {
+  background: #1a1f2e;
+  color: #fff;
+  border: none;
+  border-radius: 0.625rem;
+  padding: 0.75rem;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s;
+  margin-top: 0.25rem;
+}
+
+.btnLogin:hover:not(:disabled) {
+  opacity: 0.85;
+}
+
+.btnLogin:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* =============================================
+   Páginas
+   ============================================= */
+
+.pagina {
+  padding: 2rem 1.5rem;
+  max-width: 860px;
+}
+
+.paginaTitulo {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #111;
+  margin: 0 0 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.badge {
+  font-size: 0.875rem;
+  font-weight: 600;
+  background: #e5e7eb;
+  color: #374151;
+  padding: 0.125rem 0.5rem;
+  border-radius: 999px;
+}
+
+.estado {
+  color: #888;
+  font-size: 0.9rem;
+  padding: 1rem 0;
+}
+
+/* Cards */
+.card {
+  background: #fff;
+  border-radius: 0.875rem;
+  padding: 1.25rem;
+  margin-bottom: 1rem;
+  border: 1px solid #e5e7eb;
+}
+
+.cardInactiva {
+  opacity: 0.55;
+}
+
+.cardTitulo {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #111;
+  margin: 0 0 1rem;
+}
+
+.cardHeaderRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+/* Formularios */
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+}
+
+.formFila {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+.formInline {
+  display: flex;
+  gap: 0.625rem;
+  align-items: flex-end;
+}
+
+.campo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #374151;
+}
+
+.labelPeque {
+  font-size: 0.75rem;
+  color: #666;
+}
+
+.opcional {
+  font-weight: 400;
+  color: #9ca3af;
+}
+
+.input {
+  border: 1.5px solid #e5e7eb;
+  border-radius: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.9rem;
+  color: #111;
+  width: 100%;
+  box-sizing: border-box;
+  transition: border-color 0.15s;
+  background: #fff;
+}
+
+.input:focus {
+  outline: none;
+  border-color: #4ade80;
+  box-shadow: 0 0 0 3px rgba(74,222,128,0.15);
+}
+
+.inputPeque {
+  border: 1.5px solid #e5e7eb;
+  border-radius: 0.5rem;
+  padding: 0.375rem 0.625rem;
+  font-size: 0.8125rem;
+  color: #111;
+  background: #fff;
+  transition: border-color 0.15s;
+}
+
+.inputPeque:focus {
+  outline: none;
+  border-color: #4ade80;
+}
+
+.inputNumero {
+  border: 1.5px solid #e5e7eb;
+  border-radius: 0.5rem;
+  padding: 0.375rem 0.5rem;
+  font-size: 0.9rem;
+  color: #111;
+  width: 5rem;
+  background: #fff;
+}
+
+.textarea {
+  resize: vertical;
+  line-height: 1.5;
+}
+
+.ayuda {
+  font-size: 0.75rem;
+  color: #9ca3af;
+  margin: 0;
+}
+
+.errorMsg {
+  font-size: 0.8125rem;
+  color: #dc2626;
+  margin: 0;
+  background: #fef2f2;
+  border-radius: 0.5rem;
+  padding: 0.5rem 0.75rem;
+}
+
+/* Botones */
+.btnPrimario {
+  background: #1a1f2e;
+  color: #fff;
+  border: none;
+  border-radius: 0.5rem;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: opacity 0.12s;
+}
+
+.btnPrimario:hover:not(:disabled) { opacity: 0.85; }
+.btnPrimario:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.btnSecundario {
+  background: #f3f4f6;
+  color: #374151;
+  border: none;
+  border-radius: 0.5rem;
+  padding: 0.4rem 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.12s;
+}
+
+.btnSecundario:hover:not(:disabled) { background: #e5e7eb; }
+.btnSecundario:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.btnActiva {
+  background: rgba(74,222,128,0.15);
+  color: #16a34a;
+  border: none;
+  border-radius: 999px;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.btnInactiva {
+  background: #f3f4f6;
+  color: #9ca3af;
+  border: none;
+  border-radius: 999px;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.btnDanger {
+  background: none;
+  border: none;
+  color: #dc2626;
+  font-size: 0.8rem;
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.375rem;
+}
+
+.btnDanger:hover { background: #fef2f2; }
+
+/* =============================================
+   Cosechas
+   ============================================= */
+
+.cosechaNombre {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #111;
+  margin: 0 0 0.25rem;
+}
+
+.cosechaDesc {
+  font-size: 0.8125rem;
+  color: #666;
+  margin: 0;
+}
+
+.fechasBloque {
+  border-top: 1px solid #f3f4f6;
+  padding-top: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.fechasLabel {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 0 0 0.5rem;
+}
+
+.fechasList {
+  list-style: none;
+  margin: 0 0 0.5rem;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.fechaItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.875rem;
+  color: #374151;
+  gap: 0.5rem;
+}
+
+.fechaInactiva {
+  color: #9ca3af;
+  text-decoration: line-through;
+}
+
+.sinFechas {
+  font-size: 0.8125rem;
+  color: #9ca3af;
+  margin: 0 0 0.5rem;
+}
+
+.agregarFechaFila {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin-top: 0.5rem;
+}
+
+.btnFechaToogle {
+  background: none;
+  border: none;
+  color: #9ca3af;
+  font-size: 0.75rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.btnFechaToogle:hover { color: #374151; }
+
+/* =============================================
+   Pedidos
+   ============================================= */
+
+.filtros {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1.25rem;
+}
+
+.filtroBtn {
+  background: #fff;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 999px;
+  padding: 0.375rem 0.875rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color 0.12s, background 0.12s;
+}
+
+.filtroActivo {
+  border-color: #1a1f2e;
+  background: #1a1f2e;
+  color: #fff;
+}
+
+.pedidosList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.pedidoHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.pedidoNumero {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #111;
+  margin-right: 0.75rem;
+}
+
+.pedidoFecha {
+  font-size: 0.8rem;
+  color: #9ca3af;
+}
+
+.pedidoCliente {
+  font-size: 0.875rem;
+  color: #374151;
+  margin-bottom: 0.375rem;
+}
+
+.pedidoEntrega {
+  font-size: 0.8rem;
+  color: #6b7280;
+  margin-bottom: 0.625rem;
+}
+
+.pedidoItems {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 0.625rem;
+  border-top: 1px solid #f3f4f6;
+  padding-top: 0.5rem;
+}
+
+.pedidoItem {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8125rem;
+  color: #374151;
+  padding: 0.2rem 0;
+}
+
+.pedidoTotal {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.875rem;
+  color: #111;
+  border-top: 1px solid #f3f4f6;
+  padding-top: 0.5rem;
+}
+
+.selectEstado {
+  border: 1.5px solid #e5e7eb;
+  border-radius: 0.5rem;
+  padding: 0.35rem 0.5rem;
+  font-size: 0.8rem;
+  color: #374151;
+  background: #fff;
+  cursor: pointer;
+}
+
+/* =============================================
+   Clientes — Tabla
+   ============================================= */
+
+.tabla {
+  background: #fff;
+  border-radius: 0.875rem;
+  border: 1px solid #e5e7eb;
+  overflow: hidden;
+  margin-top: 1rem;
+}
+
+.tablaHeader {
+  display: grid;
+  grid-template-columns: 2fr 1.5fr 2fr 1fr;
+  padding: 0.625rem 1rem;
+  background: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.tablaFila {
+  display: grid;
+  grid-template-columns: 2fr 1.5fr 2fr 1fr;
+  padding: 0.75rem 1rem;
+  font-size: 0.875rem;
+  color: #374151;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.tablaFila:last-child { border-bottom: none; }
+
+.tablaCliente { font-weight: 600; color: #111; }
+.tablaSec { color: #9ca3af; }
+
+/* =============================================
+   Configuracion — Zonas y Productos
+   ============================================= */
+
+.zonasList {
+  list-style: none;
+  padding: 0;
+  margin: 0.75rem 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.zonaItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0.75rem;
+  background: #f9fafb;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  color: #374151;
+}
+
+.productosGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.productoCard {
+  border: 1.5px solid #e5e7eb;
+  border-radius: 0.75rem;
+  padding: 0.875rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.productoHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.productoEmoji { font-size: 1.25rem; }
+
+.productoNombre {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #111;
+}
+
+.productoControles {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}

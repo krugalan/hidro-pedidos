@@ -12,4 +12,5 @@ export interface DatosCliente {
   nombre: string;
   direccion: string;
   entrega: TipoEntrega;
+  email?: string;
 }

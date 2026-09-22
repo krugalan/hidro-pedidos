@@ -63,6 +63,14 @@
   margin: 0;
 }
 
+.numeroPedido {
+  font-family: var(--font-body);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-texto-sec);
+  letter-spacing: 0.03em;
+}
+
 .btnCerrar {
   width: 2rem;
   height: 2rem;
@@ -246,6 +254,18 @@
   font-size: 0.75rem;
   color: var(--color-texto-sec);
   margin: 0;
+}
+
+.disclaimer {
+  margin: 0 1.25rem 0.5rem;
+  padding: 0.75rem 1rem;
+  background-color: color-mix(in srgb, var(--color-accion) 8%, transparent);
+  border-left: 3px solid var(--color-accion);
+  border-radius: 0 0.5rem 0.5rem 0;
+  font-family: var(--font-body);
+  font-size: 0.8125rem;
+  color: var(--color-texto-sec);
+  line-height: 1.5;
 }
 
 .confirmacion {

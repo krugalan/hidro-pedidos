@@ -12,7 +12,7 @@ export function useCarrito() {
     setItems((prev) => {
       const existente = prev.find((i) => i.id === id);
       if (existente) {
-        if (existente.cantidad >= config.maxPorProducto) return prev;
+        if (existente.cantidad >= (producto.maxPorProducto ?? config.maxPorProducto)) return prev;
         return prev.map((i) =>
           i.id === id ? { ...i, cantidad: i.cantidad + 1 } : i
         );
