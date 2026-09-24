@@ -13,6 +13,7 @@ interface Props {
   zonas: Zona[];
   fechas: FechaEntrega[];
   cosechaId?: string;
+  whatsapp: string;
   onCerrar: () => void;
   onEnviado: (resumen: PedidoResumen) => void;
 }
@@ -29,7 +30,7 @@ const fechaLarga = (iso: string) =>
     weekday: "long", day: "numeric", month: "long",
   });
 
-export function HojaCierre({ items, subtotal, zonas, fechas, cosechaId, onCerrar, onEnviado }: Props) {
+export function HojaCierre({ items, subtotal, zonas, fechas, cosechaId, whatsapp, onCerrar, onEnviado }: Props) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [enviando, setEnviando] = useState(false);
 
@@ -172,7 +173,7 @@ export function HojaCierre({ items, subtotal, zonas, fechas, cosechaId, onCerrar
       items, nombre.trim(), entrega, direccion.trim(), notas,
       numero, zonaSeleccionada?.nombre, fechaSeleccionada?.fecha,
     );
-    const waUrl = `https://wa.me/${config.whatsapp}?text=${encodeURIComponent(mensaje)}`;
+    const waUrl = `https://wa.me/${whatsapp}?text=${encodeURIComponent(mensaje)}`;
 
     // Asignar la URL final a la ventana ya abierta
     if (waWindow) {

@@ -4,7 +4,8 @@
 
 .layout {
   display: flex;
-  min-height: 100dvh;
+  height: 100dvh;
+  overflow: hidden;
   background: #f6f7f9;
   font-family: system-ui, -apple-system, sans-serif;
   color: #111;
@@ -19,9 +20,6 @@
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
-  position: sticky;
-  top: 0;
-  height: 100dvh;
 }
 
 .sidebarHeader {
@@ -717,9 +715,96 @@
 }
 
 /* =============================================
-   Clientes — Tabla
+   Clientes — Tabla full-width con sticky header
    ============================================= */
 
+/* Página sin max-width para tabla full-width */
+.paginaWide {
+  padding: 0 1.5rem 2rem;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Header sticky: título + buscador */
+.paginaClientesTop {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background: #f6f7f9;
+  padding: 2rem 0 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.tablaClientesWrap {
+  background: #fff;
+  border-radius: 0.875rem;
+  border: 1px solid #e5e7eb;
+  overflow: clip; /* clip visual sin bloquear position:sticky */
+  margin-top: 1rem;
+}
+
+.tablaClientesHeader {
+  display: grid;
+  grid-template-columns: 2.5fr 1.6fr 1.8fr 0.8fr 1.6fr;
+  padding: 0.625rem 1rem;
+  background: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.tablaClientesFila {
+  display: grid;
+  grid-template-columns: 2.5fr 1.6fr 1.8fr 0.8fr 1.6fr;
+  padding: 0.75rem 1rem;
+  font-size: 0.875rem;
+  color: #374151;
+  border-bottom: 1px solid #f3f4f6;
+  align-items: center;
+}
+
+.tablaClientesFila:last-child { border-bottom: none; }
+
+.tablaClientesCentrado {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.tablaClientesAccion {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.pedidosBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.875rem;
+  height: 1.875rem;
+  border-radius: 999px;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  background: #f3f4f6;
+  color: #9ca3af;
+}
+
+.pedidosBadgeActivo {
+  background: rgba(74, 222, 128, 0.15);
+  color: #16a34a;
+}
+
+/* Tabla genérica (otras páginas) */
 .tabla {
   background: #fff;
   border-radius: 0.875rem;
