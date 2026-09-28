@@ -35,6 +35,7 @@ const fechaLarga = (iso: string) =>
 export function HojaCierre({ items, subtotal, zonas, fechas, cosechaId, whatsapp, whatsapp2, onCerrar, onEnviado }: Props) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [enviando, setEnviando] = useState(false);
+  const entregaChangedRef = useRef(false);
 
   const clienteGuardado = getCliente();
 
@@ -71,7 +72,10 @@ export function HojaCierre({ items, subtotal, zonas, fechas, cosechaId, whatsapp
     return () => dialog.removeEventListener("close", handleClose);
   }, [onCerrar]);
 
-  useEffect(() => { setZonaId(""); }, [entrega]);
+  useEffect(() => {
+    if (!entregaChangedRef.current) { entregaChangedRef.current = true; return; }
+    setZonaId("");
+  }, [entrega]);
 
   const cerrar = () => dialogRef.current?.close();
 
@@ -87,7 +91,8 @@ export function HojaCierre({ items, subtotal, zonas, fechas, cosechaId, whatsapp
   const nombreValido = nombre.trim().length >= 2;
   const direccionValida = direccion.trim().length >= 5;
   const necesitaDireccion = entrega === "domicilio";
-  const zonaValida = entrega === null || zonaId !== "";
+  const zonasParaEntrega = entrega === "domicilio" ? zonasDelivery : entrega === "retiro" ? zonasRetiro : [];
+  const zonaValida = entrega === null || zonasParaEntrega.length === 0 || zonaId !== "";
   const fechaValida = fechasActivas.length === 0 || fechaId !== "";
 
   const pedidoCompleto =

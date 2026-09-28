@@ -16,12 +16,14 @@ export function Configuracion() {
   const [waInput, setWaInput] = useState("");
   const [guardandoWa, setGuardandoWa] = useState(false);
   const [waOk, setWaOk] = useState(false);
+  const [waError, setWaError] = useState("");
 
   const [whatsapp2, setWhatsapp2] = useState("");
   const [editandoWa2, setEditandoWa2] = useState(false);
   const [wa2Input, setWa2Input] = useState("");
   const [guardandoWa2, setGuardandoWa2] = useState(false);
   const [wa2Ok, setWa2Ok] = useState(false);
+  const [wa2Error, setWa2Error] = useState("");
 
   const cargarZonas = async () => {
     const { data } = await supabase.from("zonas").select("*").order("nombre");
@@ -68,28 +70,34 @@ export function Configuracion() {
 
   const guardarWa = async () => {
     setGuardandoWa(true);
+    setWaError("");
     const { error: err } = await supabase
       .from("configuracion")
-      .upsert({ key: "whatsapp", value: waInput.trim() });
+      .upsert({ key: "whatsapp", value: waInput.trim() }, { onConflict: "key" });
     if (!err) {
       setWhatsapp(waInput.trim());
       setEditandoWa(false);
       setWaOk(true);
       setTimeout(() => setWaOk(false), 2500);
+    } else {
+      setWaError(err.message || "Error al guardar. Verificá que la tabla 'configuracion' exista en Supabase.");
     }
     setGuardandoWa(false);
   };
 
   const guardarWa2 = async () => {
     setGuardandoWa2(true);
+    setWa2Error("");
     const { error: err } = await supabase
       .from("configuracion")
-      .upsert({ key: "whatsapp2", value: wa2Input.trim() });
+      .upsert({ key: "whatsapp2", value: wa2Input.trim() }, { onConflict: "key" });
     if (!err) {
       setWhatsapp2(wa2Input.trim());
       setEditandoWa2(false);
       setWa2Ok(true);
       setTimeout(() => setWa2Ok(false), 2500);
+    } else {
+      setWa2Error(err.message || "Error al guardar. Verificá que la tabla 'configuracion' exista en Supabase.");
     }
     setGuardandoWa2(false);
   };
@@ -117,11 +125,13 @@ export function Configuracion() {
             <button className={styles.btnPrimario} onClick={guardarWa} disabled={guardandoWa}>
               {guardandoWa ? "Guardando…" : "Guardar"}
             </button>
-            <button className={styles.btnSecundario} onClick={() => setEditandoWa(false)}>
+            <button className={styles.btnSecundario} onClick={() => { setEditandoWa(false); setWaError(""); }}>
               Cancelar
             </button>
           </div>
-        ) : (
+        )}
+        {waError && <p className={styles.errorMsg} style={{ marginTop: "0.5rem" }}>{waError}</p>}
+        {!editandoWa && (
           <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginTop: "0.75rem" }}>
             <code style={{ background: "#f3f4f6", padding: "0.375rem 0.75rem", borderRadius: "0.5rem", fontSize: "0.9rem", fontFamily: "monospace" }}>
               {whatsapp}
@@ -158,11 +168,13 @@ export function Configuracion() {
             <button className={styles.btnPrimario} onClick={guardarWa2} disabled={guardandoWa2}>
               {guardandoWa2 ? "Guardando…" : "Guardar"}
             </button>
-            <button className={styles.btnSecundario} onClick={() => setEditandoWa2(false)}>
+            <button className={styles.btnSecundario} onClick={() => { setEditandoWa2(false); setWa2Error(""); }}>
               Cancelar
             </button>
           </div>
-        ) : (
+        )}
+        {wa2Error && <p className={styles.errorMsg} style={{ marginTop: "0.5rem" }}>{wa2Error}</p>}
+        {!editandoWa2 && (
           <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginTop: "0.75rem" }}>
             <code style={{ background: "#f3f4f6", padding: "0.375rem 0.75rem", borderRadius: "0.5rem", fontSize: "0.9rem", fontFamily: "monospace" }}>
               {whatsapp2 || "No configurado"}
