@@ -3,10 +3,17 @@ import config from "../config";
 import { getCliente, saveCliente } from "../lib/cliente";
 import { armarMensaje } from "../lib/whatsapp";
 import { formatPeso, formatPrecio } from "../lib/precio";
+import { siguienteNumeroPedido } from "../lib/numeroPedido";
 import { supabase } from "../lib/supabase";
 import type { ItemCarrito, TipoEntrega, TipoPago, PedidoResumen } from "../types";
 import type { Zona, FechaEntrega } from "../types/entities";
 import styles from "./HojaCierre.module.css";
+
+const DATOS_BANCO = {
+  titular: "Andrea Beatriz Diez",
+  alias: "andrea978",
+  cvu: "0000003100013090953264",
+};
 
 interface Props {
   items: ItemCarrito[];
@@ -37,7 +44,10 @@ export function HojaCierre({ items, subtotal, zonas, fechas, cosechaId, whatsapp
   const [entrega, setEntrega] = useState<TipoEntrega>(clienteGuardado?.entrega ?? null);
   const [zonaId, setZonaId] = useState(clienteGuardado?.zona_id ?? "");
   const [notas, setNotas] = useState("");
-  const [tipoPago, setTipoPago] = useState<TipoPago>(null);
+  const [tipoPago, setTipoPago] = useState<TipoPago>("efectivo");
+
+  const [copiadoAlias, setCopiadoAlias] = useState(false);
+  const [copiadoCvu, setCopiadoCvu] = useState(false);
 
   const hoy = new Date().toISOString().split("T")[0];
   const fechasActivas = fechas
@@ -65,11 +75,18 @@ export function HojaCierre({ items, subtotal, zonas, fechas, cosechaId, whatsapp
 
   const cerrar = () => dialogRef.current?.close();
 
+  const copiar = async (texto: string, setter: (v: boolean) => void) => {
+    try {
+      await navigator.clipboard.writeText(texto);
+      setter(true);
+      setTimeout(() => setter(false), 2000);
+    } catch { /* sin permisos */ }
+  };
+
   const zonaSeleccionada = zonas.find((z) => z.id === zonaId);
   const nombreValido = nombre.trim().length >= 2;
   const direccionValida = direccion.trim().length >= 5;
   const necesitaDireccion = entrega === "domicilio";
-  // La zona es siempre obligatoria una vez elegido el tipo de entrega
   const zonaValida = entrega === null || zonaId !== "";
   const fechaValida = fechasActivas.length === 0 || fechaId !== "";
 
@@ -79,8 +96,7 @@ export function HojaCierre({ items, subtotal, zonas, fechas, cosechaId, whatsapp
     entrega !== null &&
     nombreValido &&
     zonaValida &&
-    (necesitaDireccion ? direccionValida : true) &&
-    tipoPago !== null;
+    (necesitaDireccion ? direccionValida : true);
 
   const total = entrega === "domicilio" ? subtotal + config.envioCosto : subtotal;
 
@@ -91,7 +107,6 @@ export function HojaCierre({ items, subtotal, zonas, fechas, cosechaId, whatsapp
   else if (!nombreValido) mensajeFaltante = "Completá tu nombre.";
   else if (necesitaDireccion && !direccionValida) mensajeFaltante = "Completá la dirección de entrega.";
   else if (!zonaValida) mensajeFaltante = "Seleccioná una zona.";
-  else if (tipoPago === null) mensajeFaltante = "Elegí una forma de pago.";
 
   const handleEnviar = async () => {
     if (!pedidoCompleto || enviando || entrega === null) return;
@@ -111,8 +126,11 @@ export function HojaCierre({ items, subtotal, zonas, fechas, cosechaId, whatsapp
       zona_nombre: zonaSeleccionada?.nombre,
     });
 
+    // Generar número local como fallback antes de cualquier await.
+    // Si el SELECT de retorno falla por RLS (usuario anón), usamos este valor.
+    const numeroLocal = siguienteNumeroPedido();
+    let numero = numeroLocal;
     let clienteId: string | undefined;
-    let numero = 0;
 
     try {
       if (email.trim()) {
@@ -151,7 +169,8 @@ export function HojaCierre({ items, subtotal, zonas, fechas, cosechaId, whatsapp
         .select("id, numero")
         .maybeSingle();
 
-      numero = pedidoData?.numero ?? 0;
+      // Usar el numero del DB si está disponible (puede fallar por RLS en usuarios anón)
+      if (pedidoData?.numero) numero = pedidoData.numero;
 
       if (pedidoData?.id) {
         await supabase.from("pedido_items").insert(
@@ -166,7 +185,7 @@ export function HojaCierre({ items, subtotal, zonas, fechas, cosechaId, whatsapp
         );
       }
     } catch {
-      numero = 0;
+      // numero mantiene el valor local generado antes del try
     }
 
     const mensaje = armarMensaje(
@@ -175,15 +194,12 @@ export function HojaCierre({ items, subtotal, zonas, fechas, cosechaId, whatsapp
     );
     const waUrl = `https://wa.me/${whatsapp}?text=${encodeURIComponent(mensaje)}`;
 
-    // Asignar la URL final a la ventana ya abierta
     if (waWindow) {
       waWindow.location.href = waUrl;
     } else {
-      // Fallback: si el bloqueador cerró la ventana, navegar en el mismo tab
       window.location.href = waUrl;
     }
 
-    // Notificar al segundo número si está configurado
     if (whatsapp2 && waWindow2) {
       const waUrl2 = `https://wa.me/${whatsapp2}?text=${encodeURIComponent(mensaje)}`;
       waWindow2.location.href = waUrl2;
@@ -265,6 +281,7 @@ export function HojaCierre({ items, subtotal, zonas, fechas, cosechaId, whatsapp
             )}
           </div>
 
+          {/* Tipo de entrega */}
           <fieldset className={styles.fieldset}>
             <legend className={styles.legend}>¿Cómo lo recibís?</legend>
             <div className={styles.tarjetas}>
@@ -308,6 +325,7 @@ export function HojaCierre({ items, subtotal, zonas, fechas, cosechaId, whatsapp
             )}
           </fieldset>
 
+          {/* Datos del cliente */}
           <div className={styles.campos}>
             <div className={styles.campo}>
               <label className={styles.label} htmlFor="nombre">Tu nombre</label>
@@ -337,6 +355,7 @@ export function HojaCierre({ items, subtotal, zonas, fechas, cosechaId, whatsapp
             </div>
           </div>
 
+          {/* Forma de pago */}
           <fieldset className={styles.fieldset}>
             <legend className={styles.legend}>¿Cómo preferís pagar?</legend>
             <div className={styles.tarjetas}>
@@ -354,33 +373,74 @@ export function HojaCierre({ items, subtotal, zonas, fechas, cosechaId, whatsapp
             </div>
           </fieldset>
 
+          {/* Detalle del medio de pago seleccionado */}
+          {tipoPago === "efectivo" && (
+            <div className={styles.pagoDetalleEfectivo}>
+              <span className={styles.pagoDetalleIcono}>💵</span>
+              <p className={styles.pagoDetalleTexto}>Abonás en efectivo al momento de la entrega del pedido</p>
+            </div>
+          )}
+
+          {tipoPago === "transferencia" && (
+            <div className={styles.pagoDetalleTransferencia}>
+              <p className={styles.pagoDetalleTitulo}>🏦 Datos para la transferencia</p>
+              <p className={styles.pagoDetalleNota}>Enviá el comprobante por WhatsApp junto con tu pedido</p>
+              <div className={styles.pagoDatoFila}>
+                <span className={styles.pagoDatoLabel}>Titular</span>
+                <span className={styles.pagoDatoValor}>{DATOS_BANCO.titular}</span>
+              </div>
+              <div className={styles.pagoDatoFila}>
+                <span className={styles.pagoDatoLabel}>Alias</span>
+                <div className={styles.pagoDatoConCopy}>
+                  <span className={styles.pagoDatoValor}>{DATOS_BANCO.alias}</span>
+                  <button className={styles.pagoBtnCopy} type="button" onClick={() => copiar(DATOS_BANCO.alias, setCopiadoAlias)}>
+                    {copiadoAlias ? "✓" : "Copiar"}
+                  </button>
+                </div>
+              </div>
+              <div className={styles.pagoDatoFila}>
+                <span className={styles.pagoDatoLabel}>CVU</span>
+                <div className={styles.pagoDatoConCopy}>
+                  <span className={`${styles.pagoDatoValor} ${styles.pagoDatoMono}`}>{DATOS_BANCO.cvu}</span>
+                  <button className={styles.pagoBtnCopy} type="button" onClick={() => copiar(DATOS_BANCO.cvu, setCopiadoCvu)}>
+                    {copiadoCvu ? "✓" : "Copiar"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Disclaimer */}
           <div className={styles.disclaimer}>
             Tené en cuenta que algunos productos pueden no estar disponibles al momento del retiro,
             y que los precios vigentes en ese momento son los que aplican.
           </div>
 
+          {/* Botón enviar — debajo del detalle de pago */}
+          <div className={styles.seccionBoton}>
+            {pedidoCompleto ? (
+              <button
+                className={styles.btnWhatsApp}
+                onClick={handleEnviar}
+                disabled={enviando}
+                type="button"
+              >
+                {enviando ? "Enviando…" : "Enviar pedido por WhatsApp"}
+              </button>
+            ) : (
+              <p className={styles.faltante} aria-live="polite" role="status">
+                {mensajeFaltante}
+              </p>
+            )}
+          </div>
         </div>
 
+        {/* Pie: solo el total */}
         <div className={styles.pie}>
           <div className={styles.totalFila}>
             <span className={styles.totalLabel}>{entrega === "domicilio" ? "Total con envío" : "Total"}</span>
             <span className={styles.totalMonto}>{formatPeso(total)}</span>
           </div>
-
-          {pedidoCompleto ? (
-            <button
-              className={styles.btnWhatsApp}
-              onClick={handleEnviar}
-              disabled={enviando}
-              type="button"
-            >
-              {enviando ? "Enviando…" : "Enviar pedido por WhatsApp"}
-            </button>
-          ) : (
-            <p className={styles.faltante} aria-live="polite" role="status">
-              {mensajeFaltante}
-            </p>
-          )}
         </div>
       </div>
     </dialog>

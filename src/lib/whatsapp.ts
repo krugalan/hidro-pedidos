@@ -43,7 +43,12 @@ export function armarMensaje(
   if (tipoPago === "efectivo") {
     msg += `\nForma de pago: Efectivo al momento de la entrega`;
   } else if (tipoPago === "transferencia") {
-    msg += `\nForma de pago: Transferencia bancaria (enviaré el comprobante)`;
+    msg += `\nForma de pago: Transferencia bancaria`;
+    msg += `\nDatos para transferir:`;
+    msg += `\n  Titular: Andrea Beatriz Diez`;
+    msg += `\n  Alias: andrea978`;
+    msg += `\n  CVU: 0000003100013090953264`;
+    msg += `\nEnviaré el comprobante junto con este mensaje.`;
   }
 
   if (notas.trim()) {

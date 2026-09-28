@@ -444,3 +444,119 @@
   margin: 0;
   line-height: 1.4;
 }
+
+/* Sección del botón enviar (dentro del cuerpo, después del detalle de pago) */
+.seccionBoton {
+  padding: 0.75rem 1.25rem 0.25rem;
+}
+
+/* Card de detalle de pago: efectivo */
+.pagoDetalleEfectivo {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0 1.25rem;
+  padding: 0.875rem 1rem;
+  background-color: color-mix(in srgb, var(--color-accion) 8%, transparent);
+  border-radius: 0.75rem;
+  border: 1.5px solid color-mix(in srgb, var(--color-accion) 25%, transparent);
+}
+
+.pagoDetalleIcono {
+  font-size: 1.5rem;
+  flex-shrink: 0;
+}
+
+.pagoDetalleTexto {
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  color: var(--color-texto);
+  margin: 0;
+  line-height: 1.4;
+}
+
+/* Card de detalle de pago: transferencia */
+.pagoDetalleTransferencia {
+  margin: 0 1.25rem;
+  padding: 0.875rem 1rem;
+  background-color: color-mix(in srgb, var(--color-accion) 8%, transparent);
+  border-radius: 0.75rem;
+  border: 1.5px solid color-mix(in srgb, var(--color-accion) 25%, transparent);
+}
+
+.pagoDetalleTitulo {
+  font-family: var(--font-body);
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: var(--color-texto);
+  margin: 0 0 0.25rem;
+}
+
+.pagoDetalleNota {
+  font-family: var(--font-body);
+  font-size: 0.8125rem;
+  color: var(--color-texto-sec);
+  margin: 0 0 0.75rem;
+}
+
+.pagoDatoFila {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.375rem 0;
+  border-top: 1px solid color-mix(in srgb, var(--color-linea) 60%, transparent);
+  flex-wrap: wrap;
+}
+
+.pagoDatoLabel {
+  font-family: var(--font-body);
+  font-size: 0.8125rem;
+  color: var(--color-texto-sec);
+  flex-shrink: 0;
+  min-width: 4rem;
+}
+
+.pagoDatoConCopy {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.pagoDatoValor {
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--color-texto);
+  text-align: right;
+  word-break: break-all;
+}
+
+.pagoDatoMono {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.775rem;
+  letter-spacing: 0.01em;
+  word-break: break-all;
+}
+
+.pagoBtnCopy {
+  background: none;
+  border: 1.5px solid var(--color-accion);
+  border-radius: 2rem;
+  padding: 0.2rem 0.625rem;
+  font-family: var(--font-body);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-accion);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background-color 0.15s;
+  white-space: nowrap;
+}
+
+.pagoBtnCopy:hover {
+  background-color: var(--color-fila-activa);
+}

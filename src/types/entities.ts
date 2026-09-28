@@ -74,6 +74,7 @@ export interface Pedido {
   direccion_texto?: string;
   tipo_entrega: 'domicilio' | 'retiro';
   estado: 'pendiente' | 'confirmado' | 'entregado' | 'cancelado';
+  forma_pago?: 'efectivo' | 'transferencia';
   notas?: string;
   subtotal: number;
   costo_envio: number;

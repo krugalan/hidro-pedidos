@@ -1076,3 +1076,264 @@
   gap: 0.5rem;
   flex-wrap: wrap;
 }
+
+/* =============================================
+   Pedidos — Header fila con botón exportar
+   ============================================= */
+
+.paginaHeaderFila {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.25rem;
+}
+
+.paginaHeaderFila .paginaTitulo {
+  margin-bottom: 0;
+}
+
+/* =============================================
+   Pedidos — Edición inline (fecha / nota)
+   ============================================= */
+
+.editBloque {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 0.375rem 0;
+  padding: 0.625rem 0.75rem;
+  background: #f9fafb;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 0.625rem;
+}
+
+.editAcciones {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.btnEditInline {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.75rem;
+  color: #9ca3af;
+  padding: 0.125rem 0;
+  transition: color 0.12s;
+  text-decoration: none;
+}
+
+.btnEditInline:hover { color: #374151; }
+
+.pedidoNotaFila {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.375rem;
+  margin-bottom: 0.375rem;
+}
+
+.pedidoNotaFila .pedidoNotas {
+  flex: 1;
+  margin-bottom: 0;
+}
+
+/* =============================================
+   Exportar — Modal dialog
+   ============================================= */
+
+.exportDialog {
+  border: none;
+  border-radius: 1rem;
+  padding: 0;
+  width: 100%;
+  max-width: 540px;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.18);
+  background: #fff;
+}
+
+.exportDialog::backdrop {
+  background: rgba(0,0,0,0.4);
+}
+
+.exportContenido {
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+  padding: 1.25rem;
+}
+
+.exportHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.exportTitulo {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #111;
+  margin: 0;
+}
+
+.btnCerrarDialog {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  border: none;
+  background: #f3f4f6;
+  color: #6b7280;
+  font-size: 0.875rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btnCerrarDialog:hover { background: #e5e7eb; }
+
+.exportTexto {
+  background: #f6f7f9;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.625rem;
+  padding: 0.875rem 1rem;
+  font-family: monospace;
+  font-size: 0.8125rem;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 55dvh;
+  overflow-y: auto;
+  margin: 0;
+  color: #374151;
+}
+
+.exportAcciones {
+  display: flex;
+  gap: 0.625rem;
+}
+
+/* =============================================
+   Bottom nav — solo mobile (oculto en desktop)
+   ============================================= */
+
+.bottomNav {
+  display: none;
+}
+
+/* =============================================
+   Responsive — mobile (≤ 640px)
+   ============================================= */
+
+@media (max-width: 640px) {
+  /* Layout: sidebar se oculta, contenido ocupa todo */
+  .sidebar { display: none; }
+  .contenido { padding-bottom: 4.5rem; }
+
+  /* Bottom nav aparece */
+  .bottomNav {
+    display: flex;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: #1a1f2e;
+    border-top: 1px solid rgba(255,255,255,0.1);
+    z-index: 100;
+    height: auto;
+    padding-bottom: env(safe-area-inset-bottom, 0);
+  }
+
+  .bottomNavLink {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.15rem;
+    padding: 0.5rem 0.25rem;
+    color: rgba(255,255,255,0.55);
+    text-decoration: none;
+    transition: color 0.12s;
+    min-height: 3.25rem;
+  }
+
+  .bottomNavLink:hover { color: #fff; }
+
+  .bottomNavLinkActivo {
+    color: #4ade80;
+  }
+
+  .bottomNavEmoji {
+    font-size: 1.25rem;
+    line-height: 1;
+  }
+
+  .bottomNavLabel {
+    font-size: 0.6rem;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+  }
+
+  /* Página: menos padding */
+  .pagina {
+    padding: 1rem 0.75rem;
+  }
+
+  /* Cards: acciones de estado en columna, botón Entregado prominente */
+  .pedidoHeader {
+    flex-wrap: wrap;
+    gap: 0.375rem;
+  }
+
+  .estadoAcciones {
+    width: 100%;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-top: 0.25rem;
+  }
+
+  .estadoAcciones .btnActiva {
+    width: 100%;
+    padding: 0.875rem;
+    font-size: 1rem;
+    font-weight: 700;
+    background: #16a34a;
+    color: #fff;
+    border: none;
+    border-radius: 0.75rem;
+    min-height: 52px;
+    cursor: pointer;
+  }
+
+  .estadoAcciones .btnActiva:disabled {
+    opacity: 0.6;
+  }
+
+  .estadoAcciones .btnDanger {
+    align-self: center;
+    font-size: 0.8125rem;
+    padding: 0.375rem 0.75rem;
+  }
+
+  .estadoAcciones .btnInactiva {
+    align-self: center;
+  }
+
+  /* Modal exportar: full-screen en mobile */
+  .exportDialog {
+    max-width: 100%;
+    width: 100%;
+    margin: 0;
+    border-radius: 1rem 1rem 0 0;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+  }
+
+  .exportTexto {
+    max-height: 45dvh;
+  }
+}

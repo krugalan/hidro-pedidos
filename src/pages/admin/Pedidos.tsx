@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "../../lib/supabase";
-import type { Pedido } from "../../types/entities";
+import { formatPeso } from "../../lib/precio";
+import type { Pedido, FechaEntrega } from "../../types/entities";
 import styles from "./Admin.module.css";
 
 type EstadoFiltro = "pendiente" | "entregado" | "cancelado";
@@ -11,17 +12,32 @@ const FILTROS: { key: EstadoFiltro; label: string }[] = [
   { key: "cancelado", label: "❌ Cancelados" },
 ];
 
-const formatPeso = (monto: number) =>
-  new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 }).format(monto);
-
 const fechaLarga = (iso: string) =>
   new Date(iso + "T00:00:00").toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long" });
+
+const fechaCorta = (iso: string) =>
+  new Date(iso + "T00:00:00").toLocaleDateString("es-AR", { weekday: "short", day: "numeric", month: "short" });
 
 export function Pedidos() {
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [loading, setLoading] = useState(true);
   const [filtro, setFiltro] = useState<EstadoFiltro>("pendiente");
   const [cambiando, setCambiando] = useState<string | null>(null);
+
+  // Editar fecha
+  const [editFechaId, setEditFechaId] = useState<string | null>(null);
+  const [fechasEdit, setFechasEdit] = useState<FechaEntrega[]>([]);
+  const [fechaEditValor, setFechaEditValor] = useState("");
+  const [guardandoEdit, setGuardandoEdit] = useState(false);
+
+  // Editar nota
+  const [editNotaId, setEditNotaId] = useState<string | null>(null);
+  const [notaEditValor, setNotaEditValor] = useState("");
+
+  // Exportar
+  const exportDialogRef = useRef<HTMLDialogElement>(null);
+  const [exportTexto, setExportTexto] = useState("");
+  const [exportCopiado, setExportCopiado] = useState(false);
 
   const cargar = async () => {
     setLoading(true);
@@ -44,17 +60,153 @@ export function Pedidos() {
     setCambiando(null);
   };
 
-  // Filtrar por estado
+  // ── Editar fecha ──────────────────────────────────────────────
+  const abrirEditFecha = async (p: Pedido) => {
+    setEditNotaId(null);
+    setEditFechaId(p.id);
+    setFechaEditValor(p.fecha_entrega_id ?? "");
+    if (p.cosecha_id) {
+      const { data } = await supabase
+        .from("fechas_entrega")
+        .select("*")
+        .eq("cosecha_id", p.cosecha_id)
+        .order("fecha");
+      setFechasEdit((data ?? []) as FechaEntrega[]);
+    }
+  };
+
+  const guardarFecha = async () => {
+    if (!editFechaId) return;
+    setGuardandoEdit(true);
+    await supabase
+      .from("pedidos")
+      .update({ fecha_entrega_id: fechaEditValor || null })
+      .eq("id", editFechaId);
+    setEditFechaId(null);
+    await cargar();
+    setGuardandoEdit(false);
+  };
+
+  // ── Editar nota ───────────────────────────────────────────────
+  const abrirEditNota = (p: Pedido) => {
+    setEditFechaId(null);
+    setEditNotaId(p.id);
+    setNotaEditValor(p.notas ?? "");
+  };
+
+  const guardarNota = async () => {
+    if (!editNotaId) return;
+    setGuardandoEdit(true);
+    await supabase
+      .from("pedidos")
+      .update({ notas: notaEditValor.trim() || null })
+      .eq("id", editNotaId);
+    setEditNotaId(null);
+    await cargar();
+    setGuardandoEdit(false);
+  };
+
+  // ── Exportar ──────────────────────────────────────────────────
+  const abrirExport = () => {
+    const texto = generarTextoExport();
+    setExportTexto(texto);
+    setExportCopiado(false);
+    exportDialogRef.current?.showModal();
+  };
+
+  const copiarExport = async () => {
+    try {
+      await navigator.clipboard.writeText(exportTexto);
+      setExportCopiado(true);
+      setTimeout(() => setExportCopiado(false), 2500);
+    } catch { /* sin permisos */ }
+  };
+
+  const compartirExport = async () => {
+    if (navigator.share) {
+      try { await navigator.share({ text: exportTexto }); } catch { /* cancelado */ }
+    } else {
+      copiarExport();
+    }
+  };
+
+  const generarTextoExport = () => {
+    const pendientes = pedidos.filter((p) => p.estado === "pendiente");
+    if (pendientes.length === 0) return "No hay pedidos pendientes.";
+
+    // Agrupar por fecha
+    const porFecha = new Map<string, Pedido[]>();
+    for (const p of pendientes) {
+      const key = p.fecha_entrega_id ?? "_sin_fecha";
+      if (!porFecha.has(key)) porFecha.set(key, []);
+      porFecha.get(key)!.push(p);
+    }
+    const gruposFecha = [...porFecha.entries()].sort(([, a], [, b]) => {
+      const fa = a[0]?.fecha?.fecha ?? "9999";
+      const fb = b[0]?.fecha?.fecha ?? "9999";
+      return fa.localeCompare(fb);
+    });
+
+    const lineas: string[] = [];
+    lineas.push(`📋 *Pedidos pendientes — ${pendientes.length} total*`);
+    lineas.push("");
+
+    for (const [, pedidosEnFecha] of gruposFecha) {
+      const fecha = pedidosEnFecha[0]?.fecha;
+      const encabezadoFecha = fecha
+        ? `📅 ${fechaCorta(fecha.fecha).toUpperCase()}${fecha.hora_inicio && fecha.hora_fin ? ` · ${fecha.hora_inicio.slice(0, 5)}–${fecha.hora_fin.slice(0, 5)}` : ""}`
+        : "📅 SIN FECHA";
+      lineas.push(encabezadoFecha);
+      lineas.push("──────────────────────────────");
+
+      // Sub-agrupar por zona
+      const porZona = new Map<string, Pedido[]>();
+      for (const p of pedidosEnFecha) {
+        const key = p.zona_id ?? "_sin_zona";
+        if (!porZona.has(key)) porZona.set(key, []);
+        porZona.get(key)!.push(p);
+      }
+      const gruposZona = [...porZona.entries()].sort(([, a], [, b]) => {
+        const za = a[0]?.zona?.nombre ?? "ZZZZ";
+        const zb = b[0]?.zona?.nombre ?? "ZZZZ";
+        return za.localeCompare(zb);
+      });
+
+      for (const [, pedidosEnZona] of gruposZona) {
+        const zona = pedidosEnZona[0]?.zona;
+        const icono = zona?.tipo === "retiro" ? "🏪" : "📍";
+        lineas.push(`${icono} ${(zona?.nombre ?? "Sin zona").toUpperCase()} — ${pedidosEnZona.length} pedido${pedidosEnZona.length !== 1 ? "s" : ""}`);
+        lineas.push("");
+
+        for (const p of pedidosEnZona) {
+          lineas.push(`#${p.numero} · ${p.cliente?.nombre ?? "Cliente"}`);
+          if (p.tipo_entrega === "domicilio" && p.direccion_texto) {
+            lineas.push(`  📍 ${p.direccion_texto}`);
+          }
+          if (p.items) {
+            for (const item of p.items) {
+              lineas.push(`  ${item.cantidad}× ${item.nombre}`);
+            }
+          }
+          lineas.push(`  💰 ${formatPeso(p.total)}`);
+          if (p.notas) lineas.push(`  📝 ${p.notas}`);
+          lineas.push("");
+        }
+      }
+    }
+
+    return lineas.join("\n").trim();
+  };
+
+  // ── Agrupaciones ──────────────────────────────────────────────
   const filtrados = pedidos.filter((p) => p.estado === filtro);
 
-  // Agrupar por fecha_entrega_id, ordenadas por fecha ASC (sin fecha al final)
   const porFecha = new Map<string, Pedido[]>();
   for (const p of filtrados) {
     const key = p.fecha_entrega_id ?? "_sin_fecha";
     if (!porFecha.has(key)) porFecha.set(key, []);
     porFecha.get(key)!.push(p);
   }
-
   const gruposFecha = [...porFecha.entries()].sort(([, a], [, b]) => {
     const fa = a[0]?.fecha?.fecha ?? "9999-99-99";
     const fb = b[0]?.fecha?.fecha ?? "9999-99-99";
@@ -65,10 +217,17 @@ export function Pedidos() {
 
   return (
     <div className={styles.pagina}>
-      <h1 className={styles.paginaTitulo}>
-        Pedidos
-        <span className={styles.badge}>{filtrados.length}</span>
-      </h1>
+      <div className={styles.paginaHeaderFila}>
+        <h1 className={styles.paginaTitulo}>
+          Pedidos
+          <span className={styles.badge}>{filtrados.length}</span>
+        </h1>
+        {filtro === "pendiente" && pedidos.some((p) => p.estado === "pendiente") && (
+          <button className={styles.btnSecundario} onClick={abrirExport} type="button">
+            📲 Exportar
+          </button>
+        )}
+      </div>
 
       <div className={styles.filtros}>
         {FILTROS.map(({ key, label }) => (
@@ -89,14 +248,12 @@ export function Pedidos() {
           {gruposFecha.map(([fechaKey, pedidosEnFecha]) => {
             const fecha = pedidosEnFecha[0]?.fecha;
 
-            // Sub-agrupar por zona dentro de cada fecha
             const porZona = new Map<string, Pedido[]>();
             for (const p of pedidosEnFecha) {
               const key = p.zona_id ?? "_sin_zona";
               if (!porZona.has(key)) porZona.set(key, []);
               porZona.get(key)!.push(p);
             }
-
             const gruposZona = [...porZona.entries()].sort(([, a], [, b]) => {
               const za = a[0]?.zona?.nombre ?? "ZZZZ";
               const zb = b[0]?.zona?.nombre ?? "ZZZZ";
@@ -132,6 +289,8 @@ export function Pedidos() {
                       <div className={styles.pedidosList}>
                         {pedidosEnZona.map((p) => (
                           <div key={p.id} className={styles.card}>
+
+                            {/* ── Cabecera: número + badge + acciones ── */}
                             <div className={styles.pedidoHeader}>
                               <div>
                                 <span className={styles.pedidoNumero}>#{p.numero}</span>
@@ -170,6 +329,7 @@ export function Pedidos() {
                               </div>
                             </div>
 
+                            {/* ── Cliente ── */}
                             {p.cliente && (
                               <div className={styles.pedidoCliente}>
                                 <strong>{p.cliente.nombre}</strong>
@@ -178,6 +338,7 @@ export function Pedidos() {
                               </div>
                             )}
 
+                            {/* ── Entrega ── */}
                             <div className={styles.pedidoEntrega}>
                               {p.tipo_entrega === "domicilio" ? "📍 Envío a domicilio" : "🏪 Retiro"}
                               {p.tipo_entrega === "domicilio" && p.direccion_texto && (
@@ -185,10 +346,77 @@ export function Pedidos() {
                               )}
                             </div>
 
-                            {p.notas && (
-                              <div className={styles.pedidoNotas}>📝 {p.notas}</div>
+                            {/* ── Editar fecha de entrega ── */}
+                            {editFechaId === p.id ? (
+                              <div className={styles.editBloque}>
+                                <select
+                                  className={styles.input}
+                                  value={fechaEditValor}
+                                  onChange={(e) => setFechaEditValor(e.target.value)}
+                                >
+                                  <option value="">Sin fecha</option>
+                                  {fechasEdit.map((f) => (
+                                    <option key={f.id} value={f.id}>
+                                      {fechaLarga(f.fecha)}
+                                      {f.hora_inicio && f.hora_fin ? ` · ${f.hora_inicio.slice(0, 5)}–${f.hora_fin.slice(0, 5)}` : ""}
+                                    </option>
+                                  ))}
+                                </select>
+                                <div className={styles.editAcciones}>
+                                  <button className={styles.btnPrimario} onClick={guardarFecha} disabled={guardandoEdit}>
+                                    {guardandoEdit ? "Guardando…" : "Guardar"}
+                                  </button>
+                                  <button className={styles.btnSecundario} onClick={() => setEditFechaId(null)}>
+                                    Cancelar
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <button
+                                className={styles.btnEditInline}
+                                onClick={() => abrirEditFecha(p)}
+                                type="button"
+                              >
+                                📅 Cambiar fecha
+                              </button>
                             )}
 
+                            {/* ── Nota ── */}
+                            {editNotaId === p.id ? (
+                              <div className={styles.editBloque}>
+                                <textarea
+                                  className={`${styles.input} ${styles.textarea}`}
+                                  value={notaEditValor}
+                                  onChange={(e) => setNotaEditValor(e.target.value)}
+                                  rows={2}
+                                  placeholder="Escribí una nota para este pedido…"
+                                  autoFocus
+                                />
+                                <div className={styles.editAcciones}>
+                                  <button className={styles.btnPrimario} onClick={guardarNota} disabled={guardandoEdit}>
+                                    {guardandoEdit ? "Guardando…" : "Guardar"}
+                                  </button>
+                                  <button className={styles.btnSecundario} onClick={() => setEditNotaId(null)}>
+                                    Cancelar
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className={styles.pedidoNotaFila}>
+                                {p.notas ? (
+                                  <>
+                                    <span className={styles.pedidoNotas}>📝 {p.notas}</span>
+                                    <button className={styles.btnEditInline} onClick={() => abrirEditNota(p)} type="button">✏️</button>
+                                  </>
+                                ) : (
+                                  <button className={styles.btnEditInline} onClick={() => abrirEditNota(p)} type="button">
+                                    + Agregar nota
+                                  </button>
+                                )}
+                              </div>
+                            )}
+
+                            {/* ── Items ── */}
                             {p.items && p.items.length > 0 && (
                               <ul className={styles.pedidoItems}>
                                 {p.items.map((item) => (
@@ -215,6 +443,32 @@ export function Pedidos() {
           })}
         </div>
       )}
+
+      {/* ── Modal exportar ── */}
+      <dialog ref={exportDialogRef} className={styles.exportDialog}>
+        <div className={styles.exportContenido}>
+          <div className={styles.exportHeader}>
+            <h2 className={styles.exportTitulo}>Lista de pedidos</h2>
+            <button
+              className={styles.btnCerrarDialog}
+              onClick={() => exportDialogRef.current?.close()}
+              type="button"
+              aria-label="Cerrar"
+            >
+              ✕
+            </button>
+          </div>
+          <pre className={styles.exportTexto}>{exportTexto}</pre>
+          <div className={styles.exportAcciones}>
+            <button className={styles.btnPrimario} onClick={copiarExport} type="button">
+              {exportCopiado ? "✓ Copiado" : "Copiar texto"}
+            </button>
+            <button className={styles.btnSecundario} onClick={compartirExport} type="button">
+              📲 Compartir
+            </button>
+          </div>
+        </div>
+      </dialog>
     </div>
   );
 }
