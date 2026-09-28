@@ -9,6 +9,7 @@ export function AdminLogin() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [mostrarPassword, setMostrarPassword] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -51,16 +52,26 @@ export function AdminLogin() {
 
           <div className={styles.campo}>
             <label className={styles.label} htmlFor="password">Contraseña</label>
-            <input
-              id="password"
-              type="password"
-              className={styles.input}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              autoComplete="current-password"
-              placeholder="••••••••"
-            />
+            <div className={styles.inputConOjo}>
+              <input
+                id="password"
+                type={mostrarPassword ? "text" : "password"}
+                className={styles.input}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                autoComplete="current-password"
+                placeholder="••••••••"
+              />
+              <button
+                type="button"
+                className={styles.btnOjo}
+                onClick={() => setMostrarPassword((v) => !v)}
+                aria-label={mostrarPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+              >
+                {mostrarPassword ? "🙈" : "👁️"}
+              </button>
+            </div>
           </div>
 
           {error && <p className={styles.loginError}>{error}</p>}

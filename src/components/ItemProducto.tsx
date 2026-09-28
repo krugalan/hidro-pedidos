@@ -1,3 +1,4 @@
+import { formatPrecio } from "../lib/precio";
 import type { ProductoUI } from "../types";
 import styles from "./ItemProducto.module.css";
 
@@ -9,13 +10,6 @@ interface Props {
   onQuitar: (id: string) => void;
   onExpandir: (id: string) => void;
 }
-
-const formatPeso = (n: number) =>
-  new Intl.NumberFormat("es-AR", {
-    style: "currency",
-    currency: "ARS",
-    maximumFractionDigits: 0,
-  }).format(n);
 
 export function ItemProducto({ producto, cantidad, expandido, onAgregar, onQuitar, onExpandir }: Props) {
   const enMax = cantidad >= producto.maxPorProducto;
@@ -35,7 +29,7 @@ export function ItemProducto({ producto, cantidad, expandido, onAgregar, onQuita
           <div className={styles.expandidoTexto}>
             <p className={styles.expandidoNombre}>{producto.nombre}</p>
             <p className={styles.expandidoDetalle}>
-              <span className={styles.expandidoPrecio}>{formatPeso(producto.precio)}</span>
+              <span className={styles.expandidoPrecio}>{formatPrecio(producto.precio)}</span>
               {producto.detalle && <> · {producto.detalle}</>}
             </p>
           </div>
@@ -86,7 +80,7 @@ export function ItemProducto({ producto, cantidad, expandido, onAgregar, onQuita
         <div className={styles.info}>
           <p className={styles.nombre}>{producto.nombre}</p>
           <p className={styles.detalle}>
-            <span className={styles.precio}>{formatPeso(producto.precio)}</span>
+            <span className={styles.precio}>{formatPrecio(producto.precio)}</span>
             {" · "}
             {producto.detalle}
           </p>

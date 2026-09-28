@@ -2,8 +2,9 @@ import { useEffect, useRef, useState } from "react";
 import config from "../config";
 import { getCliente, saveCliente } from "../lib/cliente";
 import { armarMensaje } from "../lib/whatsapp";
+import { formatPeso, formatPrecio } from "../lib/precio";
 import { supabase } from "../lib/supabase";
-import type { ItemCarrito, TipoEntrega, PedidoResumen } from "../types";
+import type { ItemCarrito, TipoEntrega, TipoPago, PedidoResumen } from "../types";
 import type { Zona, FechaEntrega } from "../types/entities";
 import styles from "./HojaCierre.module.css";
 
@@ -14,23 +15,17 @@ interface Props {
   fechas: FechaEntrega[];
   cosechaId?: string;
   whatsapp: string;
+  whatsapp2?: string;
   onCerrar: () => void;
   onEnviado: (resumen: PedidoResumen) => void;
 }
-
-const formatPeso = (monto: number) =>
-  new Intl.NumberFormat("es-AR", {
-    style: "currency",
-    currency: "ARS",
-    maximumFractionDigits: 0,
-  }).format(monto);
 
 const fechaLarga = (iso: string) =>
   new Date(iso + "T00:00:00").toLocaleDateString("es-AR", {
     weekday: "long", day: "numeric", month: "long",
   });
 
-export function HojaCierre({ items, subtotal, zonas, fechas, cosechaId, whatsapp, onCerrar, onEnviado }: Props) {
+export function HojaCierre({ items, subtotal, zonas, fechas, cosechaId, whatsapp, whatsapp2, onCerrar, onEnviado }: Props) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [enviando, setEnviando] = useState(false);
 
@@ -42,6 +37,7 @@ export function HojaCierre({ items, subtotal, zonas, fechas, cosechaId, whatsapp
   const [entrega, setEntrega] = useState<TipoEntrega>(clienteGuardado?.entrega ?? null);
   const [zonaId, setZonaId] = useState(clienteGuardado?.zona_id ?? "");
   const [notas, setNotas] = useState("");
+  const [tipoPago, setTipoPago] = useState<TipoPago>(null);
 
   const hoy = new Date().toISOString().split("T")[0];
   const fechasActivas = fechas
@@ -83,7 +79,8 @@ export function HojaCierre({ items, subtotal, zonas, fechas, cosechaId, whatsapp
     entrega !== null &&
     nombreValido &&
     zonaValida &&
-    (necesitaDireccion ? direccionValida : true);
+    (necesitaDireccion ? direccionValida : true) &&
+    tipoPago !== null;
 
   const total = entrega === "domicilio" ? subtotal + config.envioCosto : subtotal;
 
@@ -94,14 +91,16 @@ export function HojaCierre({ items, subtotal, zonas, fechas, cosechaId, whatsapp
   else if (!nombreValido) mensajeFaltante = "Completá tu nombre.";
   else if (necesitaDireccion && !direccionValida) mensajeFaltante = "Completá la dirección de entrega.";
   else if (!zonaValida) mensajeFaltante = "Seleccioná una zona.";
+  else if (tipoPago === null) mensajeFaltante = "Elegí una forma de pago.";
 
   const handleEnviar = async () => {
     if (!pedidoCompleto || enviando || entrega === null) return;
     setEnviando(true);
 
-    // Abrir la ventana SINCRÓNICAMENTE antes de cualquier await.
+    // Abrir las ventanas SINCRÓNICAMENTE antes de cualquier await.
     // Safari bloquea window.open() si se llama después de un await (pierde el contexto de user gesture).
     const waWindow = window.open("", "_blank");
+    const waWindow2 = whatsapp2 ? window.open("", "_blank") : null;
 
     saveCliente({
       nombre: nombre.trim(),
@@ -142,6 +141,7 @@ export function HojaCierre({ items, subtotal, zonas, fechas, cosechaId, whatsapp
           zona_id: zonaId || null,
           direccion_texto: entrega === "domicilio" ? direccion.trim() : null,
           tipo_entrega: entrega,
+          forma_pago: tipoPago,
           estado: "pendiente",
           subtotal,
           costo_envio: costoEnvio,
@@ -171,7 +171,7 @@ export function HojaCierre({ items, subtotal, zonas, fechas, cosechaId, whatsapp
 
     const mensaje = armarMensaje(
       items, nombre.trim(), entrega, direccion.trim(), notas,
-      numero, zonaSeleccionada?.nombre, fechaSeleccionada?.fecha,
+      numero, zonaSeleccionada?.nombre, fechaSeleccionada?.fecha, tipoPago,
     );
     const waUrl = `https://wa.me/${whatsapp}?text=${encodeURIComponent(mensaje)}`;
 
@@ -183,6 +183,12 @@ export function HojaCierre({ items, subtotal, zonas, fechas, cosechaId, whatsapp
       window.location.href = waUrl;
     }
 
+    // Notificar al segundo número si está configurado
+    if (whatsapp2 && waWindow2) {
+      const waUrl2 = `https://wa.me/${whatsapp2}?text=${encodeURIComponent(mensaje)}`;
+      waWindow2.location.href = waUrl2;
+    }
+
     onEnviado({
       numero,
       nombre: nombre.trim(),
@@ -190,6 +196,7 @@ export function HojaCierre({ items, subtotal, zonas, fechas, cosechaId, whatsapp
       subtotal,
       total,
       entrega,
+      tipoPago,
       fechaIso: fechaSeleccionada?.fecha,
       zonaSeleccionada: zonaSeleccionada?.nombre,
     });
@@ -210,7 +217,7 @@ export function HojaCierre({ items, subtotal, zonas, fechas, cosechaId, whatsapp
             {items.map((item) => (
               <li key={item.id} className={styles.lineaItem}>
                 <span>{item.emoji} {item.cantidad} × {item.nombre}</span>
-                <span className={styles.itemSubtotal}>{formatPeso(item.precio * item.cantidad)}</span>
+                <span className={styles.itemSubtotal}>{formatPrecio(item.precio * item.cantidad)}</span>
               </li>
             ))}
           </ul>
@@ -329,6 +336,23 @@ export function HojaCierre({ items, subtotal, zonas, fechas, cosechaId, whatsapp
               <textarea id="notas" className={`${styles.input} ${styles.textarea}`} value={notas} onChange={(e) => setNotas(e.target.value)} rows={2} placeholder="Timbre, piso, referencia…" />
             </div>
           </div>
+
+          <fieldset className={styles.fieldset}>
+            <legend className={styles.legend}>¿Cómo preferís pagar?</legend>
+            <div className={styles.tarjetas}>
+              <label className={`${styles.tarjeta} ${tipoPago === "efectivo" ? styles.tarjetaActiva : ""}`}>
+                <input type="radio" name="tipoPago" value="efectivo" checked={tipoPago === "efectivo"} onChange={() => setTipoPago("efectivo")} className={styles.radioOculto} />
+                <span className={styles.tarjetaTitulo}>💵 Efectivo</span>
+                <span className={styles.tarjetaSub}>Al momento de la entrega</span>
+              </label>
+
+              <label className={`${styles.tarjeta} ${tipoPago === "transferencia" ? styles.tarjetaActiva : ""}`}>
+                <input type="radio" name="tipoPago" value="transferencia" checked={tipoPago === "transferencia"} onChange={() => setTipoPago("transferencia")} className={styles.radioOculto} />
+                <span className={styles.tarjetaTitulo}>🏦 Transferencia</span>
+                <span className={styles.tarjetaSub}>Enviás el comprobante</span>
+              </label>
+            </div>
+          </fieldset>
 
           <div className={styles.disclaimer}>
             Tené en cuenta que algunos productos pueden no estar disponibles al momento del retiro,

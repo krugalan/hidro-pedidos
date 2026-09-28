@@ -1,13 +1,7 @@
 import config from "../config";
-import type { ItemCarrito, TipoEntrega } from "../types";
+import type { ItemCarrito, TipoEntrega, TipoPago } from "../types";
 import { proximaEntrega } from "./fecha";
-
-const formatPeso = (monto: number) =>
-  new Intl.NumberFormat("es-AR", {
-    style: "currency",
-    currency: "ARS",
-    maximumFractionDigits: 0,
-  }).format(monto);
+import { formatPeso, formatPrecio } from "./precio";
 
 const DISCLAIMER =
   "_Al confirmar este pedido aceptás que puede haber artículos sin stock al momento del retiro y que los precios vigentes en ese momento son los que aplican._\n*Validaremos los montos al momento de la entrega.*";
@@ -20,7 +14,8 @@ export function armarMensaje(
   notas: string,
   numeroPedido: number,
   zonaNombre?: string,
-  fechaIso?: string
+  fechaIso?: string,
+  tipoPago?: TipoPago
 ): string {
   const fecha = fechaIso
     ? new Date(fechaIso + "T00:00:00").toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long" })
@@ -29,7 +24,7 @@ export function armarMensaje(
   const total = entrega === "domicilio" ? subtotal + config.envioCosto : subtotal;
 
   const lineas = items
-    .map((i) => `• ${i.cantidad} × ${i.nombre} — ${formatPeso(i.precio * i.cantidad)}`)
+    .map((i) => `• ${i.cantidad} × ${i.nombre} — ${formatPrecio(i.precio * i.cantidad)}`)
     .join("\n");
 
   let msg = `Hola! Soy ${nombre}. Pedido #${numeroPedido} para el ${fecha}:\n\n${lineas}\n\nSubtotal: ${formatPeso(subtotal)}`;
@@ -44,6 +39,12 @@ export function armarMensaje(
   }
 
   msg += `\n*Total: ${formatPeso(total)}*`;
+
+  if (tipoPago === "efectivo") {
+    msg += `\nForma de pago: Efectivo al momento de la entrega`;
+  } else if (tipoPago === "transferencia") {
+    msg += `\nForma de pago: Transferencia bancaria (enviaré el comprobante)`;
+  }
 
   if (notas.trim()) {
     msg += `\n\nNotas: ${notas.trim()}`;

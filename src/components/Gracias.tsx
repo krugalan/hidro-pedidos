@@ -1,14 +1,18 @@
 import { useState } from "react";
+import { formatPeso, formatPrecio } from "../lib/precio";
 import type { PedidoResumen } from "../types";
 import styles from "./Gracias.module.css";
+
+const DATOS_TRANSFERENCIA = {
+  titular: "Andrea Beatriz Diez",
+  alias: "andrea978",
+  cvu: "0000003100013090953264",
+};
 
 interface Props {
   resumen: PedidoResumen;
   onNuevoPedido: () => void;
 }
-
-const formatPeso = (n: number) =>
-  new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 }).format(n);
 
 const fechaLarga = (iso: string) =>
   new Date(iso + "T00:00:00").toLocaleDateString("es-AR", {
@@ -17,8 +21,18 @@ const fechaLarga = (iso: string) =>
 
 export function Gracias({ resumen, onNuevoPedido }: Props) {
   const [copiado, setCopiado] = useState(false);
+  const [copiadoAlias, setCopiadoAlias] = useState(false);
+  const [copiadoCvu, setCopiadoCvu] = useState(false);
 
-  const { numero, nombre, items, total, entrega, fechaIso, zonaSeleccionada } = resumen;
+  const { numero, nombre, items, total, entrega, tipoPago, fechaIso, zonaSeleccionada } = resumen;
+
+  const copiar = async (texto: string, setter: (v: boolean) => void) => {
+    try {
+      await navigator.clipboard.writeText(texto);
+      setter(true);
+      setTimeout(() => setter(false), 2000);
+    } catch { /* sin permisos */ }
+  };
 
   const primerNombre = nombre.split(" ")[0];
 
@@ -62,7 +76,7 @@ export function Gracias({ resumen, onNuevoPedido }: Props) {
               <span className={styles.itemNombre}>
                 {item.emoji} {item.cantidad} × {item.nombre}
               </span>
-              <span className={styles.itemPrecio}>{formatPeso(item.precio * item.cantidad)}</span>
+              <span className={styles.itemPrecio}>{formatPrecio(item.precio * item.cantidad)}</span>
             </li>
           ))}
         </ul>
@@ -71,6 +85,42 @@ export function Gracias({ resumen, onNuevoPedido }: Props) {
           <span className={styles.totalMonto}>{formatPeso(total)}</span>
         </div>
       </div>
+
+      {tipoPago === "transferencia" && (
+        <div className={styles.pagoCard}>
+          <p className={styles.pagoTitulo}>🏦 Datos para la transferencia</p>
+          <p className={styles.pagoNota}>Enviá el comprobante por WhatsApp junto con tu pedido</p>
+          <div className={styles.datoFila}>
+            <span className={styles.datoLabel}>Titular</span>
+            <span className={styles.datoValor}>{DATOS_TRANSFERENCIA.titular}</span>
+          </div>
+          <div className={styles.datoFila}>
+            <span className={styles.datoLabel}>Alias</span>
+            <div className={styles.datoConCopy}>
+              <span className={styles.datoValor}>{DATOS_TRANSFERENCIA.alias}</span>
+              <button className={styles.btnCopy} onClick={() => copiar(DATOS_TRANSFERENCIA.alias, setCopiadoAlias)} type="button">
+                {copiadoAlias ? "✓ Copiado" : "Copiar"}
+              </button>
+            </div>
+          </div>
+          <div className={styles.datoFila}>
+            <span className={styles.datoLabel}>CVU</span>
+            <div className={styles.datoConCopy}>
+              <span className={`${styles.datoValor} ${styles.datoMono}`}>{DATOS_TRANSFERENCIA.cvu}</span>
+              <button className={styles.btnCopy} onClick={() => copiar(DATOS_TRANSFERENCIA.cvu, setCopiadoCvu)} type="button">
+                {copiadoCvu ? "✓ Copiado" : "Copiar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {tipoPago === "efectivo" && (
+        <div className={styles.pagoEfectivo}>
+          <span className={styles.pagoEfectivoIcono}>💵</span>
+          <p className={styles.pagoEfectivoTexto}>Abonás en efectivo al momento de la entrega del pedido</p>
+        </div>
+      )}
 
       <p className={styles.instruccion}>
         Revisá WhatsApp y tocá <strong>Enviar</strong> para confirmar el pedido con nosotros.

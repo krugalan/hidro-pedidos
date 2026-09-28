@@ -17,6 +17,12 @@ export function Configuracion() {
   const [guardandoWa, setGuardandoWa] = useState(false);
   const [waOk, setWaOk] = useState(false);
 
+  const [whatsapp2, setWhatsapp2] = useState("");
+  const [editandoWa2, setEditandoWa2] = useState(false);
+  const [wa2Input, setWa2Input] = useState("");
+  const [guardandoWa2, setGuardandoWa2] = useState(false);
+  const [wa2Ok, setWa2Ok] = useState(false);
+
   const cargarZonas = async () => {
     const { data } = await supabase.from("zonas").select("*").order("nombre");
     setZonas((data ?? []) as Zona[]);
@@ -31,6 +37,12 @@ export function Configuracion() {
       .eq("key", "whatsapp")
       .maybeSingle()
       .then(({ data }) => { if (data?.value) setWhatsapp(data.value); });
+    supabase
+      .from("configuracion")
+      .select("value")
+      .eq("key", "whatsapp2")
+      .maybeSingle()
+      .then(({ data }) => { if (data?.value) setWhatsapp2(data.value); });
   }, []);
 
   const crearZona = async (e: React.FormEvent) => {
@@ -66,6 +78,20 @@ export function Configuracion() {
       setTimeout(() => setWaOk(false), 2500);
     }
     setGuardandoWa(false);
+  };
+
+  const guardarWa2 = async () => {
+    setGuardandoWa2(true);
+    const { error: err } = await supabase
+      .from("configuracion")
+      .upsert({ key: "whatsapp2", value: wa2Input.trim() });
+    if (!err) {
+      setWhatsapp2(wa2Input.trim());
+      setEditandoWa2(false);
+      setWa2Ok(true);
+      setTimeout(() => setWa2Ok(false), 2500);
+    }
+    setGuardandoWa2(false);
   };
 
   return (
@@ -107,6 +133,47 @@ export function Configuracion() {
               Editar
             </button>
             {waOk && (
+              <span style={{ fontSize: "0.8rem", color: "#16a34a", fontWeight: 600 }}>✓ Guardado</span>
+            )}
+          </div>
+        )}
+      </section>
+
+      {/* WhatsApp 2 */}
+      <section className={styles.card}>
+        <h2 className={styles.cardTitulo}>WhatsApp secundario de pedidos</h2>
+        <p className={styles.ayuda}>
+          Número adicional que también recibe una copia de cada pedido (opcional). Mismo formato: 549 + código de área sin 0 + número sin 15.
+        </p>
+        {editandoWa2 ? (
+          <div className={styles.formInline} style={{ marginTop: "0.75rem" }}>
+            <input
+              type="text"
+              className={styles.input}
+              value={wa2Input}
+              onChange={(e) => setWa2Input(e.target.value)}
+              placeholder="5491138860680"
+              autoFocus
+            />
+            <button className={styles.btnPrimario} onClick={guardarWa2} disabled={guardandoWa2}>
+              {guardandoWa2 ? "Guardando…" : "Guardar"}
+            </button>
+            <button className={styles.btnSecundario} onClick={() => setEditandoWa2(false)}>
+              Cancelar
+            </button>
+          </div>
+        ) : (
+          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginTop: "0.75rem" }}>
+            <code style={{ background: "#f3f4f6", padding: "0.375rem 0.75rem", borderRadius: "0.5rem", fontSize: "0.9rem", fontFamily: "monospace" }}>
+              {whatsapp2 || "No configurado"}
+            </code>
+            <button
+              className={styles.btnSecundario}
+              onClick={() => { setWa2Input(whatsapp2); setEditandoWa2(true); }}
+            >
+              {whatsapp2 ? "Editar" : "Agregar"}
+            </button>
+            {wa2Ok && (
               <span style={{ fontSize: "0.8rem", color: "#16a34a", fontWeight: 600 }}>✓ Guardado</span>
             )}
           </div>

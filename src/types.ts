@@ -8,6 +8,8 @@ export interface ItemCarrito {
 
 export type TipoEntrega = "domicilio" | "retiro" | null;
 
+export type TipoPago = "efectivo" | "transferencia" | null;
+
 export interface DatosCliente {
   nombre: string;
   direccion: string;
@@ -33,6 +35,7 @@ export interface PedidoResumen {
   subtotal: number;
   total: number;
   entrega: TipoEntrega;
+  tipoPago: TipoPago;
   fechaIso?: string;
   zonaSeleccionada?: string;
 }

@@ -287,6 +287,36 @@
   gap: 0.375rem;
 }
 
+.inputConOjo {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.inputConOjo .input {
+  padding-right: 2.75rem;
+}
+
+.btnOjo {
+  position: absolute;
+  right: 0.625rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1.1rem;
+  line-height: 1;
+  padding: 0.25rem;
+  color: #6b7280;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.375rem;
+  transition: color 0.15s;
+}
+
+.btnOjo:hover { color: #111827; }
+.btnOjo:focus-visible { outline: 2px solid #16a34a; outline-offset: 2px; }
+
 .label {
   font-size: 0.8125rem;
   font-weight: 600;

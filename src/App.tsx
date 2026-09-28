@@ -100,6 +100,7 @@ function Tienda() {
           fechas={cosechaActiva?.fechas ?? []}
           cosechaId={cosechaActiva?.id}
           whatsapp={cfg.whatsapp}
+          whatsapp2={cfg.whatsapp2 || undefined}
           onCerrar={() => setHojaAbierta(false)}
           onEnviado={(resumen) => {
             setPedidoEnviado(resumen);
