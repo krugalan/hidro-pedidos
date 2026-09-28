@@ -113,25 +113,26 @@ export function Configuracion() {
           Número al que llegan los pedidos de los clientes (formato: 549 + código de área sin 0 + número sin 15).
         </p>
         {editandoWa ? (
-          <div className={styles.formInline} style={{ marginTop: "0.75rem" }}>
-            <input
-              type="text"
-              className={styles.input}
-              value={waInput}
-              onChange={(e) => setWaInput(e.target.value)}
-              placeholder="5491138860680"
-              autoFocus
-            />
-            <button className={styles.btnPrimario} onClick={guardarWa} disabled={guardandoWa}>
-              {guardandoWa ? "Guardando…" : "Guardar"}
-            </button>
-            <button className={styles.btnSecundario} onClick={() => { setEditandoWa(false); setWaError(""); }}>
-              Cancelar
-            </button>
-          </div>
-        )}
-        {waError && <p className={styles.errorMsg} style={{ marginTop: "0.5rem" }}>{waError}</p>}
-        {!editandoWa && (
+          <>
+            <div className={styles.formInline} style={{ marginTop: "0.75rem" }}>
+              <input
+                type="text"
+                className={styles.input}
+                value={waInput}
+                onChange={(e) => setWaInput(e.target.value)}
+                placeholder="5491138860680"
+                autoFocus
+              />
+              <button className={styles.btnPrimario} onClick={guardarWa} disabled={guardandoWa}>
+                {guardandoWa ? "Guardando…" : "Guardar"}
+              </button>
+              <button className={styles.btnSecundario} onClick={() => { setEditandoWa(false); setWaError(""); }}>
+                Cancelar
+              </button>
+            </div>
+            {waError && <p className={styles.errorMsg} style={{ marginTop: "0.5rem" }}>{waError}</p>}
+          </>
+        ) : (
           <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginTop: "0.75rem" }}>
             <code style={{ background: "#f3f4f6", padding: "0.375rem 0.75rem", borderRadius: "0.5rem", fontSize: "0.9rem", fontFamily: "monospace" }}>
               {whatsapp}
@@ -156,25 +157,26 @@ export function Configuracion() {
           Número adicional que también recibe una copia de cada pedido (opcional). Mismo formato: 549 + código de área sin 0 + número sin 15.
         </p>
         {editandoWa2 ? (
-          <div className={styles.formInline} style={{ marginTop: "0.75rem" }}>
-            <input
-              type="text"
-              className={styles.input}
-              value={wa2Input}
-              onChange={(e) => setWa2Input(e.target.value)}
-              placeholder="5491138860680"
-              autoFocus
-            />
-            <button className={styles.btnPrimario} onClick={guardarWa2} disabled={guardandoWa2}>
-              {guardandoWa2 ? "Guardando…" : "Guardar"}
-            </button>
-            <button className={styles.btnSecundario} onClick={() => { setEditandoWa2(false); setWa2Error(""); }}>
-              Cancelar
-            </button>
-          </div>
-        )}
-        {wa2Error && <p className={styles.errorMsg} style={{ marginTop: "0.5rem" }}>{wa2Error}</p>}
-        {!editandoWa2 && (
+          <>
+            <div className={styles.formInline} style={{ marginTop: "0.75rem" }}>
+              <input
+                type="text"
+                className={styles.input}
+                value={wa2Input}
+                onChange={(e) => setWa2Input(e.target.value)}
+                placeholder="5491138860680"
+                autoFocus
+              />
+              <button className={styles.btnPrimario} onClick={guardarWa2} disabled={guardandoWa2}>
+                {guardandoWa2 ? "Guardando…" : "Guardar"}
+              </button>
+              <button className={styles.btnSecundario} onClick={() => { setEditandoWa2(false); setWa2Error(""); }}>
+                Cancelar
+              </button>
+            </div>
+            {wa2Error && <p className={styles.errorMsg} style={{ marginTop: "0.5rem" }}>{wa2Error}</p>}
+          </>
+        ) : (
           <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginTop: "0.75rem" }}>
             <code style={{ background: "#f3f4f6", padding: "0.375rem 0.75rem", borderRadius: "0.5rem", fontSize: "0.9rem", fontFamily: "monospace" }}>
               {whatsapp2 || "No configurado"}
