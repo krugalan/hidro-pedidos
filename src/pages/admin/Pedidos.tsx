@@ -16,8 +16,6 @@ const FILTROS: { key: EstadoFiltro; label: string }[] = [
 const fechaLarga = (iso: string) =>
   new Date(iso + "T00:00:00").toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long" });
 
-const fechaCorta = (iso: string) =>
-  new Date(iso + "T00:00:00").toLocaleDateString("es-AR", { weekday: "short", day: "numeric", month: "short" });
 
 export function Pedidos() {
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
