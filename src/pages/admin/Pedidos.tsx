@@ -134,17 +134,17 @@ export function Pedidos() {
     const pendientes = pedidos.filter((p) => p.estado === "pendiente");
     if (pendientes.length === 0) return "No hay pedidos pendientes.";
 
-    // Agrupar por fecha
+    // Agrupar por date string para unificar pedidos de distintas cosechas en la misma fecha
     const porFecha = new Map<string, Pedido[]>();
     for (const p of pendientes) {
-      const key = p.fecha_entrega_id ?? "_sin_fecha";
+      const key = p.fecha?.fecha ?? "_sin_fecha";
       if (!porFecha.has(key)) porFecha.set(key, []);
       porFecha.get(key)!.push(p);
     }
-    const gruposFecha = [...porFecha.entries()].sort(([, a], [, b]) => {
-      const fa = a[0]?.fecha?.fecha ?? "9999";
-      const fb = b[0]?.fecha?.fecha ?? "9999";
-      return fa.localeCompare(fb);
+    const gruposFecha = [...porFecha.entries()].sort(([a], [b]) => {
+      if (a === "_sin_fecha") return 1;
+      if (b === "_sin_fecha") return -1;
+      return a.localeCompare(b);
     });
 
     const lineas: string[] = [];
@@ -159,7 +159,7 @@ export function Pedidos() {
       lineas.push(encabezadoFecha);
       lineas.push("──────────────────────────────");
 
-      // Sub-agrupar por zona
+      // Sub-agrupar por zona — retiro primero, luego delivery
       const porZona = new Map<string, Pedido[]>();
       for (const p of pedidosEnFecha) {
         const key = p.zona_id ?? "_sin_zona";
@@ -167,9 +167,10 @@ export function Pedidos() {
         porZona.get(key)!.push(p);
       }
       const gruposZona = [...porZona.entries()].sort(([, a], [, b]) => {
-        const za = a[0]?.zona?.nombre ?? "ZZZZ";
-        const zb = b[0]?.zona?.nombre ?? "ZZZZ";
-        return za.localeCompare(zb);
+        const ta = a[0]?.zona?.tipo === "retiro" ? 0 : 1;
+        const tb = b[0]?.zona?.tipo === "retiro" ? 0 : 1;
+        if (ta !== tb) return ta - tb;
+        return (a[0]?.zona?.nombre ?? "").localeCompare(b[0]?.zona?.nombre ?? "");
       });
 
       for (const [, pedidosEnZona] of gruposZona) {
@@ -201,16 +202,17 @@ export function Pedidos() {
   // ── Agrupaciones ──────────────────────────────────────────────
   const filtrados = pedidos.filter((p) => p.estado === filtro);
 
+  // Agrupar por date string (no por ID) para unificar pedidos de distintas cosechas en la misma fecha
   const porFecha = new Map<string, Pedido[]>();
   for (const p of filtrados) {
-    const key = p.fecha_entrega_id ?? "_sin_fecha";
+    const key = p.fecha?.fecha ?? "_sin_fecha";
     if (!porFecha.has(key)) porFecha.set(key, []);
     porFecha.get(key)!.push(p);
   }
-  const gruposFecha = [...porFecha.entries()].sort(([, a], [, b]) => {
-    const fa = a[0]?.fecha?.fecha ?? "9999-99-99";
-    const fb = b[0]?.fecha?.fecha ?? "9999-99-99";
-    return fa.localeCompare(fb);
+  const gruposFecha = [...porFecha.entries()].sort(([a], [b]) => {
+    if (a === "_sin_fecha") return 1;
+    if (b === "_sin_fecha") return -1;
+    return a.localeCompare(b);
   });
 
   if (loading) return <div className={styles.estado}>Cargando pedidos…</div>;
@@ -254,10 +256,12 @@ export function Pedidos() {
               if (!porZona.has(key)) porZona.set(key, []);
               porZona.get(key)!.push(p);
             }
+            // Retiro primero, luego delivery; alfabético dentro de cada tipo
             const gruposZona = [...porZona.entries()].sort(([, a], [, b]) => {
-              const za = a[0]?.zona?.nombre ?? "ZZZZ";
-              const zb = b[0]?.zona?.nombre ?? "ZZZZ";
-              return za.localeCompare(zb);
+              const ta = a[0]?.zona?.tipo === "retiro" ? 0 : 1;
+              const tb = b[0]?.zona?.tipo === "retiro" ? 0 : 1;
+              if (ta !== tb) return ta - tb;
+              return (a[0]?.zona?.nombre ?? "").localeCompare(b[0]?.zona?.nombre ?? "");
             });
 
             return (

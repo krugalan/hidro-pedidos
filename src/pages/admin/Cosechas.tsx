@@ -50,6 +50,17 @@ export function Cosechas() {
     setGuardando(true);
     setError("");
 
+    const { count: duplicada } = await supabase
+      .from("cosechas")
+      .select("id", { count: "exact", head: true })
+      .eq("fecha_cosecha", fechaCosecha);
+
+    if ((duplicada ?? 0) > 0) {
+      setError(`Ya existe una cosecha con fecha de cosecha ${fechaCorta(fechaCosecha)}.`);
+      setGuardando(false);
+      return;
+    }
+
     const { data: cosecha, error: err } = await supabase
       .from("cosechas")
       .insert({ nombre: semanaAnio(fechaCosecha), fecha_cosecha: fechaCosecha, activa: true })
@@ -128,6 +139,17 @@ export function Cosechas() {
   };
 
   const toggleFecha = async (fecha: FechaEntrega) => {
+    if (fecha.activa) {
+      const { count } = await supabase
+        .from("pedidos")
+        .select("id", { count: "exact", head: true })
+        .eq("fecha_entrega_id", fecha.id)
+        .eq("estado", "pendiente");
+      if ((count ?? 0) > 0) {
+        setError(`No podés desactivar esta fecha: tiene ${count} pedido${count === 1 ? "" : "s"} pendiente${count === 1 ? "" : "s"}.`);
+        return;
+      }
+    }
     await supabase.from("fechas_entrega").update({ activa: !fecha.activa }).eq("id", fecha.id);
     cargar();
   };

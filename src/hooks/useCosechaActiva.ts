@@ -11,15 +11,13 @@ export function useCosechaActiva() {
     const hoy = new Date().toISOString().split("T")[0];
 
     async function cargar() {
-      // Queries paralelas: cosecha activa (con items) y próxima cosecha
-      const [{ data: activaRaw }, { data: proximaRaw }] = await Promise.all([
+      // Cargar todas las cosechas activas (ASC) + próxima inactiva en paralelo
+      const [{ data: activasRaw }, { data: proximaRaw }] = await Promise.all([
         supabase
           .from("cosechas")
           .select("*, items:cosecha_items(*, producto:productos(*))")
           .eq("activa", true)
-          .order("fecha_cosecha", { ascending: false })
-          .limit(1)
-          .maybeSingle(),
+          .order("fecha_cosecha", { ascending: true }),
         supabase
           .from("cosechas")
           .select("*")
@@ -30,17 +28,37 @@ export function useCosechaActiva() {
           .maybeSingle(),
       ]);
 
-      let activa = activaRaw as Cosecha | null;
+      const activas = (activasRaw ?? []) as Cosecha[];
+      let activa: Cosecha | null = null;
 
-      // Fechas siempre en query separado: el join anidado falla silenciosamente
-      // en el primer request (cold start de PostgREST / Supabase free tier).
-      if (activa) {
+      // Buscar la primera cosecha activa con al menos una fecha activa >= hoy
+      // Fechas en query separado: el join anidado falla silenciosamente en cold start.
+      for (const c of activas) {
         const { data: fechas } = await supabase
           .from("fechas_entrega")
           .select("*")
-          .eq("cosecha_id", activa.id)
+          .eq("cosecha_id", c.id)
           .order("fecha", { ascending: true });
-        activa = { ...activa, fechas: (fechas ?? []) as FechaEntrega[] };
+        const conFechas = { ...c, fechas: (fechas ?? []) as FechaEntrega[] };
+        const tieneFechaFutura = (fechas ?? []).some((f) => f.activa && f.fecha >= hoy);
+        if (tieneFechaFutura && !activa) {
+          activa = conFechas;
+        }
+        // Guardar fallback con la última cosecha activa aunque no tenga fechas futuras
+        if (!tieneFechaFutura && activas.indexOf(c) === activas.length - 1 && !activa) {
+          activa = conFechas;
+        }
+      }
+
+      // Fallback si no se encontró ninguna con fechas futuras pero hay activas
+      if (!activa && activas.length > 0) {
+        const ultima = activas[activas.length - 1];
+        const { data: fechas } = await supabase
+          .from("fechas_entrega")
+          .select("*")
+          .eq("cosecha_id", ultima.id)
+          .order("fecha", { ascending: true });
+        activa = { ...ultima, fechas: (fechas ?? []) as FechaEntrega[] };
       }
 
       setCosechaActiva(activa);
