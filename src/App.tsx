@@ -112,6 +112,13 @@ function Tienda() {
       {avisameAbierto && (
         <Avisame onCerrar={() => setAvisameAbierto(false)} />
       )}
+
+      <footer className={styles.footer}>
+        Creado con ❤️ por{" "}
+        <a href="https://destino-pinamar.com.ar/" target="_blank" rel="noopener noreferrer">
+          Destino Pinamar
+        </a>
+      </footer>
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import { formatPeso } from "../../lib/precio";
 import { useConfiguracion } from "../../hooks/useConfiguracion";
@@ -35,6 +35,11 @@ export function Pedidos() {
   // Editar nota
   const [editNotaId, setEditNotaId] = useState<string | null>(null);
   const [notaEditValor, setNotaEditValor] = useState("");
+
+  // Modal exportar
+  const exportDialogRef = useRef<HTMLDialogElement>(null);
+  const [exportTexto, setExportTexto] = useState("");
+  const [exportCopiado, setExportCopiado] = useState(false);
 
   const cargar = async () => {
     setLoading(true);
@@ -103,19 +108,39 @@ export function Pedidos() {
     setGuardandoEdit(false);
   };
 
-  // ── Enviar por WhatsApp ───────────────────────────────────────
-  const enviarPorWhatsApp = () => {
-    const texto = generarTextoExport();
-    const url = `https://wa.me/${cfg.whatsapp}?text=${encodeURIComponent(texto)}`;
+  // ── Modal exportar ───────────────────────────────────────────
+  const abrirExport = () => {
+    setExportTexto(generarTextoExport());
+    setExportCopiado(false);
+    exportDialogRef.current?.showModal();
+  };
+
+  const copiarExport = async () => {
+    try {
+      await navigator.clipboard.writeText(exportTexto);
+      setExportCopiado(true);
+      setTimeout(() => setExportCopiado(false), 2500);
+    } catch { /* sin permisos */ }
+  };
+
+  const enviarPorWhatsApp = async () => {
+    // navigator.share pasa el texto nativo sin URL encoding — emojis siempre correctos.
+    if (navigator.share) {
+      try {
+        await navigator.share({ text: exportTexto });
+        return;
+      } catch (e) {
+        if ((e as Error).name === "AbortError") return;
+      }
+    }
+    const url = `https://wa.me/${cfg.whatsapp}?text=${encodeURIComponent(exportTexto)}`;
     window.open(url, "_blank");
   };
 
   const generarTextoExport = () => {
-    // Exportar pendientes + pagados (ambos necesitan ser entregados)
     const pendientes = pedidos.filter((p) => p.estado === "pendiente" || p.estado === "pagado");
     if (pendientes.length === 0) return "No hay pedidos pendientes.";
 
-    // Agrupar por date string para unificar pedidos de distintas cosechas en la misma fecha
     const porFecha = new Map<string, Pedido[]>();
     for (const p of pendientes) {
       const key = p.fecha?.fecha ?? "_sin_fecha";
@@ -129,18 +154,16 @@ export function Pedidos() {
     });
 
     const lineas: string[] = [];
-    lineas.push(`📋 *Pedidos pendientes — ${pendientes.length} total*`);
-    lineas.push("");
+    lineas.push(`🌿 *${pendientes.length} pedido${pendientes.length !== 1 ? "s" : ""} para entregar*`);
 
     for (const [, pedidosEnFecha] of gruposFecha) {
       const fecha = pedidosEnFecha[0]?.fecha;
-      const encabezadoFecha = fecha
-        ? `📅 ${fechaCorta(fecha.fecha).toUpperCase()}${fecha.hora_inicio && fecha.hora_fin ? ` · ${fecha.hora_inicio.slice(0, 5)}–${fecha.hora_fin.slice(0, 5)}` : ""}`
-        : "📅 SIN FECHA";
-      lineas.push(encabezadoFecha);
-      lineas.push("──────────────────────────────");
+      lineas.push("");
+      lineas.push(fecha
+        ? `📅 *${fechaLarga(fecha.fecha)}${fecha.hora_inicio && fecha.hora_fin ? ` · ${fecha.hora_inicio.slice(0, 5)}–${fecha.hora_fin.slice(0, 5)}` : ""}*`
+        : "📅 *Sin fecha asignada*"
+      );
 
-      // Sub-agrupar por zona — retiro primero, luego delivery
       const porZona = new Map<string, Pedido[]>();
       for (const p of pedidosEnFecha) {
         const key = p.zona_id ?? "_sin_zona";
@@ -157,27 +180,23 @@ export function Pedidos() {
       for (const [, pedidosEnZona] of gruposZona) {
         const zona = pedidosEnZona[0]?.zona;
         const icono = zona?.tipo === "retiro" ? "🏪" : "📍";
-        lineas.push(`${icono} ${(zona?.nombre ?? "Sin zona").toUpperCase()} — ${pedidosEnZona.length} pedido${pedidosEnZona.length !== 1 ? "s" : ""}`);
         lineas.push("");
+        lineas.push(`${icono} *${zona?.nombre ?? "Sin zona"}* — ${pedidosEnZona.length} pedido${pedidosEnZona.length !== 1 ? "s" : ""}`);
 
         for (const p of pedidosEnZona) {
-          lineas.push(`#${p.numero} · ${p.cliente?.nombre ?? "Cliente"}`);
+          lineas.push("");
+          lineas.push(`*#${p.numero}* ${p.cliente?.nombre ?? "Cliente"}`);
           if (p.tipo_entrega === "domicilio" && p.direccion_texto) {
-            lineas.push(`  📍 ${p.direccion_texto}`);
+            lineas.push(`📍 ${p.direccion_texto}`);
           }
           if (p.items) {
-            for (const item of p.items) {
-              lineas.push(`  ${item.cantidad}× ${item.nombre}`);
-            }
+            lineas.push(p.items.map((i) => `${i.cantidad}× ${i.nombre}`).join(" · "));
           }
-          lineas.push(`  💰 ${formatPeso(p.total)}`);
-          if (p.forma_pago === "transferencia") {
-            lineas.push(p.estado === "pagado" ? "  🏦 Transferencia ✓ pagada" : "  🏦 Transferencia ⚠️ SIN CONFIRMAR");
-          } else {
-            lineas.push("  💵 Efectivo");
-          }
-          if (p.notas) lineas.push(`  📝 ${p.notas}`);
-          lineas.push("");
+          const pago = p.forma_pago === "transferencia"
+            ? (p.estado === "pagado" ? "🏦 Transf. ✓" : "🏦 Transf. ⚠️ sin confirmar")
+            : "💵 Efectivo";
+          lineas.push(`💰 ${formatPeso(p.total)} · ${pago}`);
+          if (p.notas) lineas.push(`📝 _${p.notas}_`);
         }
       }
     }
@@ -214,8 +233,8 @@ export function Pedidos() {
           <span className={styles.badge}>{filtrados.length}</span>
         </h1>
         {filtro === "pendiente" && pedidos.some((p) => p.estado === "pendiente" || p.estado === "pagado") && (
-          <button className={styles.btnSecundario} onClick={enviarPorWhatsApp} type="button">
-            📲 Enviarme por WhatsApp
+          <button className={styles.btnSecundario} onClick={abrirExport} type="button">
+            📲 Exportar
           </button>
         )}
       </div>
@@ -471,6 +490,31 @@ export function Pedidos() {
         </div>
       )}
 
+      {/* ── Modal exportar ── */}
+      <dialog ref={exportDialogRef} className={styles.exportDialog}>
+        <div className={styles.exportContenido}>
+          <div className={styles.exportHeader}>
+            <h2 className={styles.exportTitulo}>Lista de pedidos</h2>
+            <button
+              className={styles.btnCerrarDialog}
+              onClick={() => exportDialogRef.current?.close()}
+              type="button"
+              aria-label="Cerrar"
+            >
+              ✕
+            </button>
+          </div>
+          <pre className={styles.exportTexto}>{exportTexto}</pre>
+          <div className={styles.exportAcciones}>
+            <button className={styles.btnPrimario} onClick={copiarExport} type="button">
+              {exportCopiado ? "✓ Copiado" : "Copiar texto"}
+            </button>
+            <button className={styles.btnSecundario} onClick={enviarPorWhatsApp} type="button">
+              📲 Enviar por WhatsApp
+            </button>
+          </div>
+        </div>
+      </dialog>
     </div>
   );
 }
