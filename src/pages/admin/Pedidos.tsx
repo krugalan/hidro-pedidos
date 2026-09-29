@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import { formatPeso } from "../../lib/precio";
+import { useConfiguracion } from "../../hooks/useConfiguracion";
 import type { Pedido, FechaEntrega } from "../../types/entities";
 import styles from "./Admin.module.css";
 
@@ -23,6 +24,7 @@ export function Pedidos() {
   const [loading, setLoading] = useState(true);
   const [filtro, setFiltro] = useState<EstadoFiltro>("pendiente");
   const [cambiando, setCambiando] = useState<string | null>(null);
+  const { cfg } = useConfiguracion();
 
   // Editar fecha
   const [editFechaId, setEditFechaId] = useState<string | null>(null);
@@ -33,11 +35,6 @@ export function Pedidos() {
   // Editar nota
   const [editNotaId, setEditNotaId] = useState<string | null>(null);
   const [notaEditValor, setNotaEditValor] = useState("");
-
-  // Exportar
-  const exportDialogRef = useRef<HTMLDialogElement>(null);
-  const [exportTexto, setExportTexto] = useState("");
-  const [exportCopiado, setExportCopiado] = useState(false);
 
   const cargar = async () => {
     setLoading(true);
@@ -106,28 +103,11 @@ export function Pedidos() {
     setGuardandoEdit(false);
   };
 
-  // ── Exportar ──────────────────────────────────────────────────
-  const abrirExport = () => {
+  // ── Enviar por WhatsApp ───────────────────────────────────────
+  const enviarPorWhatsApp = () => {
     const texto = generarTextoExport();
-    setExportTexto(texto);
-    setExportCopiado(false);
-    exportDialogRef.current?.showModal();
-  };
-
-  const copiarExport = async () => {
-    try {
-      await navigator.clipboard.writeText(exportTexto);
-      setExportCopiado(true);
-      setTimeout(() => setExportCopiado(false), 2500);
-    } catch { /* sin permisos */ }
-  };
-
-  const compartirExport = async () => {
-    if (navigator.share) {
-      try { await navigator.share({ text: exportTexto }); } catch { /* cancelado */ }
-    } else {
-      copiarExport();
-    }
+    const url = `https://wa.me/${cfg.whatsapp}?text=${encodeURIComponent(texto)}`;
+    window.open(url, "_blank");
   };
 
   const generarTextoExport = () => {
@@ -191,6 +171,11 @@ export function Pedidos() {
             }
           }
           lineas.push(`  💰 ${formatPeso(p.total)}`);
+          if (p.forma_pago === "transferencia") {
+            lineas.push(p.estado === "pagado" ? "  🏦 Transferencia ✓ pagada" : "  🏦 Transferencia ⚠️ SIN CONFIRMAR");
+          } else {
+            lineas.push("  💵 Efectivo");
+          }
           if (p.notas) lineas.push(`  📝 ${p.notas}`);
           lineas.push("");
         }
@@ -229,8 +214,8 @@ export function Pedidos() {
           <span className={styles.badge}>{filtrados.length}</span>
         </h1>
         {filtro === "pendiente" && pedidos.some((p) => p.estado === "pendiente" || p.estado === "pagado") && (
-          <button className={styles.btnSecundario} onClick={abrirExport} type="button">
-            📲 Exportar
+          <button className={styles.btnSecundario} onClick={enviarPorWhatsApp} type="button">
+            📲 Enviarme por WhatsApp
           </button>
         )}
       </div>
@@ -486,31 +471,6 @@ export function Pedidos() {
         </div>
       )}
 
-      {/* ── Modal exportar ── */}
-      <dialog ref={exportDialogRef} className={styles.exportDialog}>
-        <div className={styles.exportContenido}>
-          <div className={styles.exportHeader}>
-            <h2 className={styles.exportTitulo}>Lista de pedidos</h2>
-            <button
-              className={styles.btnCerrarDialog}
-              onClick={() => exportDialogRef.current?.close()}
-              type="button"
-              aria-label="Cerrar"
-            >
-              ✕
-            </button>
-          </div>
-          <pre className={styles.exportTexto}>{exportTexto}</pre>
-          <div className={styles.exportAcciones}>
-            <button className={styles.btnPrimario} onClick={copiarExport} type="button">
-              {exportCopiado ? "✓ Copiado" : "Copiar texto"}
-            </button>
-            <button className={styles.btnSecundario} onClick={compartirExport} type="button">
-              📲 Compartir
-            </button>
-          </div>
-        </div>
-      </dialog>
     </div>
   );
 }
