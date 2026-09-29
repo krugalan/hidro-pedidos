@@ -28,7 +28,7 @@ export function Productos() {
 
   const cargar = async () => {
     setLoading(true);
-    const { data } = await supabase.from("productos").select("*").order("nombre");
+    const { data } = await supabase.from("productos").select("*").order("activo", { ascending: false }).order("nombre");
     setProductos((data ?? []) as Producto[]);
     setLoading(false);
   };

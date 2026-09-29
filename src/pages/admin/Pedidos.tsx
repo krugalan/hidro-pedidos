@@ -131,7 +131,8 @@ export function Pedidos() {
   };
 
   const generarTextoExport = () => {
-    const pendientes = pedidos.filter((p) => p.estado === "pendiente");
+    // Exportar pendientes + pagados (ambos necesitan ser entregados)
+    const pendientes = pedidos.filter((p) => p.estado === "pendiente" || p.estado === "pagado");
     if (pendientes.length === 0) return "No hay pedidos pendientes.";
 
     // Agrupar por date string para unificar pedidos de distintas cosechas en la misma fecha
@@ -200,7 +201,10 @@ export function Pedidos() {
   };
 
   // ── Agrupaciones ──────────────────────────────────────────────
-  const filtrados = pedidos.filter((p) => p.estado === filtro);
+  // "pendiente" agrupa también los pagados (siguen siendo pendientes de entrega)
+  const filtrados = pedidos.filter((p) =>
+    filtro === "pendiente" ? p.estado === "pendiente" || p.estado === "pagado" : p.estado === filtro
+  );
 
   // Agrupar por date string (no por ID) para unificar pedidos de distintas cosechas en la misma fecha
   const porFecha = new Map<string, Pedido[]>();
@@ -224,7 +228,7 @@ export function Pedidos() {
           Pedidos
           <span className={styles.badge}>{filtrados.length}</span>
         </h1>
-        {filtro === "pendiente" && pedidos.some((p) => p.estado === "pendiente") && (
+        {filtro === "pendiente" && pedidos.some((p) => p.estado === "pendiente" || p.estado === "pagado") && (
           <button className={styles.btnSecundario} onClick={abrirExport} type="button">
             📲 Exportar
           </button>
@@ -305,6 +309,34 @@ export function Pedidos() {
                               <div className={styles.estadoAcciones}>
                                 {p.estado === "pendiente" && (
                                   <>
+                                    {p.forma_pago === "transferencia" ? (
+                                      <button
+                                        className={styles.btnActiva}
+                                        disabled={cambiando === p.id}
+                                        onClick={() => cambiarEstado(p.id, "pagado")}
+                                      >
+                                        💳 Confirmar pago
+                                      </button>
+                                    ) : (
+                                      <button
+                                        className={styles.btnActiva}
+                                        disabled={cambiando === p.id}
+                                        onClick={() => cambiarEstado(p.id, "entregado")}
+                                      >
+                                        ✅ Entregado
+                                      </button>
+                                    )}
+                                    <button
+                                      className={styles.btnDanger}
+                                      disabled={cambiando === p.id}
+                                      onClick={() => cambiarEstado(p.id, "cancelado")}
+                                    >
+                                      ✗ Cancelar
+                                    </button>
+                                  </>
+                                )}
+                                {p.estado === "pagado" && (
+                                  <>
                                     <button
                                       className={styles.btnActiva}
                                       disabled={cambiando === p.id}
@@ -313,11 +345,11 @@ export function Pedidos() {
                                       ✅ Entregado
                                     </button>
                                     <button
-                                      className={styles.btnDanger}
+                                      className={styles.btnInactiva}
                                       disabled={cambiando === p.id}
-                                      onClick={() => cambiarEstado(p.id, "cancelado")}
+                                      onClick={() => cambiarEstado(p.id, "pendiente")}
                                     >
-                                      ✗ Cancelar
+                                      ↩ Pendiente de pago
                                     </button>
                                   </>
                                 )}
@@ -342,11 +374,17 @@ export function Pedidos() {
                               </div>
                             )}
 
-                            {/* ── Entrega ── */}
+                            {/* ── Entrega + pago ── */}
                             <div className={styles.pedidoEntrega}>
                               {p.tipo_entrega === "domicilio" ? "📍 Envío a domicilio" : "🏪 Retiro"}
                               {p.tipo_entrega === "domicilio" && p.direccion_texto && (
                                 <span className={styles.pedidoDireccion}> — {p.direccion_texto}</span>
+                              )}
+                              {p.forma_pago === "transferencia" && (
+                                <span className={styles.pedidoPago}> · 🏦 Transferencia</span>
+                              )}
+                              {p.forma_pago === "efectivo" && (
+                                <span className={styles.pedidoPago}> · 💵 Efectivo</span>
                               )}
                             </div>
 

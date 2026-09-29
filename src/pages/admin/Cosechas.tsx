@@ -84,7 +84,7 @@ export function Cosechas() {
       .from("pedidos")
       .select("id", { count: "exact", head: true })
       .eq("cosecha_id", cosecha.id)
-      .in("estado", ["pendiente", "entregado"]);
+      .in("estado", ["pendiente", "pagado", "entregado"]);
 
     if ((activos ?? 0) > 0) {
       setError(`"${cosecha.nombre}" tiene pedidos activos y no puede eliminarse.`);
@@ -144,7 +144,7 @@ export function Cosechas() {
         .from("pedidos")
         .select("id", { count: "exact", head: true })
         .eq("fecha_entrega_id", fecha.id)
-        .eq("estado", "pendiente");
+        .in("estado", ["pendiente", "pagado"]);
       if ((count ?? 0) > 0) {
         setError(`No podés desactivar esta fecha: tiene ${count} pedido${count === 1 ? "" : "s"} pendiente${count === 1 ? "" : "s"}.`);
         return;

@@ -723,6 +723,11 @@
   color: #991b1b;
 }
 
+.estado_pagado {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
 /* Acciones de estado (botones inline) */
 .estadoAcciones {
   display: flex;
@@ -734,6 +739,11 @@
 .pedidoDireccion {
   color: #374151;
   font-weight: 500;
+}
+
+.pedidoPago {
+  color: #6b7280;
+  font-size: 0.85em;
 }
 
 /* Notas en pedido */

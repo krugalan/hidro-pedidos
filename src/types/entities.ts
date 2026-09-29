@@ -73,7 +73,7 @@ export interface Pedido {
   zona_id?: string;
   direccion_texto?: string;
   tipo_entrega: 'domicilio' | 'retiro';
-  estado: 'pendiente' | 'confirmado' | 'entregado' | 'cancelado';
+  estado: 'pendiente' | 'confirmado' | 'pagado' | 'entregado' | 'cancelado';
   forma_pago?: 'efectivo' | 'transferencia';
   notas?: string;
   subtotal: number;
