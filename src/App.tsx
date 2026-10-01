@@ -40,11 +40,11 @@ function Tienda() {
 
   const { items, agregar, quitar, getCantidad, subtotal, totalUnidades, limpiar } = useCarrito(productos);
 
-  const proximaFecha = cosechaActiva?.fechas
-    ?.filter((f) => f.activa)
+  const hoy = new Date().toISOString().split("T")[0];
+  const fechasEntrega = cosechaActiva?.fechas
+    ?.filter((f) => f.activa && f.fecha >= hoy)
     .sort((a, b) => a.fecha.localeCompare(b.fecha))
-    .find((f) => f.fecha >= new Date().toISOString().split("T")[0])
-    ?.fecha;
+    .map((f) => f.fecha) ?? [];
 
   if (loading) {
     return (
@@ -61,7 +61,7 @@ function Tienda() {
     <div className={styles.app}>
       <Header
         nombreCosecha={pedidoEnviado ? undefined : cosechaActiva?.nombre}
-        fechaEntrega={pedidoEnviado ? undefined : proximaFecha}
+        fechasEntrega={pedidoEnviado ? undefined : (fechasEntrega.length > 0 ? fechasEntrega : undefined)}
       />
       <main className={styles.main}>
         {pedidoEnviado ? (
