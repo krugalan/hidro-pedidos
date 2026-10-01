@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import type { Cosecha, FechaEntrega, Producto } from "../../types/entities";
 import styles from "./Admin.module.css";
@@ -134,6 +134,15 @@ export function Cosechas() {
   };
 
   const eliminarFecha = async (id: string) => {
+    const { count } = await supabase
+      .from("pedidos")
+      .select("id", { count: "exact", head: true })
+      .eq("fecha_entrega_id", id)
+      .in("estado", ["pendiente", "pagado"]);
+    if ((count ?? 0) > 0) {
+      setError(`Esta fecha tiene ${count} pedido${count === 1 ? "" : "s"} pendiente${count === 1 ? "" : "s"}. Movalos a otra fecha antes de eliminarla.`);
+      return;
+    }
     await supabase.from("fechas_entrega").delete().eq("id", id);
     cargar();
   };
@@ -146,11 +155,16 @@ export function Cosechas() {
         .eq("fecha_entrega_id", fecha.id)
         .in("estado", ["pendiente", "pagado"]);
       if ((count ?? 0) > 0) {
-        setError(`No podés desactivar esta fecha: tiene ${count} pedido${count === 1 ? "" : "s"} pendiente${count === 1 ? "" : "s"}.`);
+        setError(`Esta fecha tiene ${count} pedido${count === 1 ? "" : "s"} pendiente${count === 1 ? "" : "s"}. Usá "Cerrar" para desactivarla igual.`);
         return;
       }
     }
     await supabase.from("fechas_entrega").update({ activa: !fecha.activa }).eq("id", fecha.id);
+    cargar();
+  };
+
+  const cerrarFecha = async (fecha: FechaEntrega) => {
+    await supabase.from("fechas_entrega").update({ activa: false }).eq("id", fecha.id);
     cargar();
   };
 
@@ -197,6 +211,7 @@ export function Cosechas() {
               onAgregarFecha={(f) => agregarFecha(c.id, f, c.fechas ?? [])}
               onEliminarFecha={eliminarFecha}
               onToggleFecha={toggleFecha}
+              onCerrarFecha={cerrarFecha}
             />
           ))
         )}
@@ -208,7 +223,7 @@ export function Cosechas() {
 function CosechaCard({
   cosecha, todosProductos,
   onToggleActiva, onEliminar, onToggleProducto,
-  onAgregarFecha, onEliminarFecha, onToggleFecha,
+  onAgregarFecha, onEliminarFecha, onToggleFecha, onCerrarFecha,
 }: {
   cosecha: Cosecha;
   todosProductos: Producto[];
@@ -218,9 +233,35 @@ function CosechaCard({
   onAgregarFecha: (fecha: string) => void;
   onEliminarFecha: (id: string) => void;
   onToggleFecha: (f: FechaEntrega) => void;
+  onCerrarFecha: (f: FechaEntrega) => void;
 }) {
   const [nuevaFecha, setNuevaFecha] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [confirmCerrar, setConfirmCerrar] = useState<string | null>(null);
+  const [pedidosPendientes, setPedidosPendientes] = useState<Record<string, number>>({});
+  const fechaIdsRef = useRef("");
+
+  useEffect(() => {
+    const ids = (cosecha.fechas ?? []).map((f) => f.id);
+    const key = ids.sort().join(",");
+    if (key === fechaIdsRef.current || ids.length === 0) {
+      if (ids.length === 0) setPedidosPendientes({});
+      return;
+    }
+    fechaIdsRef.current = key;
+    supabase
+      .from("pedidos")
+      .select("fecha_entrega_id")
+      .in("fecha_entrega_id", ids)
+      .in("estado", ["pendiente", "pagado"])
+      .then(({ data }) => {
+        const counts: Record<string, number> = {};
+        (data ?? []).forEach((p) => {
+          if (p.fecha_entrega_id) counts[p.fecha_entrega_id] = (counts[p.fecha_entrega_id] ?? 0) + 1;
+        });
+        setPedidosPendientes(counts);
+      });
+  });
 
   const productosEnCosecha = new Set(cosecha.items?.map((i) => i.producto_id) ?? []);
 
@@ -281,17 +322,55 @@ function CosechaCard({
           <ul className={styles.fechasList}>
             {cosecha.fechas
               .sort((a, b) => a.fecha.localeCompare(b.fecha))
-              .map((f) => (
-                <li key={f.id} className={`${styles.fechaItem} ${!f.activa ? styles.fechaInactiva : ""}`}>
-                  <span>{fechaLarga(f.fecha)}</span>
-                  <div className={styles.fechaAcciones}>
-                    <button className={styles.btnFechaToogle} onClick={() => onToggleFecha(f)}>
-                      {f.activa ? "Desactivar" : "Activar"}
-                    </button>
-                    <button className={styles.btnDanger} onClick={() => onEliminarFecha(f.id)}>✕</button>
-                  </div>
-                </li>
-              ))}
+              .map((f) => {
+                const pendientes = pedidosPendientes[f.id] ?? 0;
+                const activaConPendientes = f.activa && pendientes > 0;
+                return (
+                  <li key={f.id} className={`${styles.fechaItem} ${!f.activa ? styles.fechaInactiva : ""}`}>
+                    <div className={styles.fechaInfo}>
+                      <span>{fechaLarga(f.fecha)}</span>
+                      {activaConPendientes && (
+                        <span className={styles.pendientesBadge}>
+                          {pendientes} pedido{pendientes !== 1 ? "s" : ""} pendiente{pendientes !== 1 ? "s" : ""}
+                        </span>
+                      )}
+                    </div>
+                    <div className={styles.fechaAcciones}>
+                      {activaConPendientes ? (
+                        confirmCerrar === f.id ? (
+                          <div className={styles.confirmRow}>
+                            <span className={styles.confirmTxt}>
+                              ¿Cerrar con {pendientes} pedido{pendientes !== 1 ? "s" : ""} pendiente{pendientes !== 1 ? "s" : ""}?
+                            </span>
+                            <button className={styles.btnDanger} onClick={() => { onCerrarFecha(f); setConfirmCerrar(null); }}>
+                              Sí, cerrar
+                            </button>
+                            <button className={styles.btnSecundario} onClick={() => setConfirmCerrar(null)}>No</button>
+                          </div>
+                        ) : (
+                          <>
+                            <button className={styles.btnCerrar} onClick={() => setConfirmCerrar(f.id)}>Cerrar</button>
+                            <button
+                              className={styles.btnDanger}
+                              disabled
+                              title={`Tiene ${pendientes} pedido${pendientes !== 1 ? "s" : ""} pendiente${pendientes !== 1 ? "s" : ""}. Movalos a otra fecha antes de eliminar.`}
+                            >
+                              ✕
+                            </button>
+                          </>
+                        )
+                      ) : (
+                        <>
+                          <button className={styles.btnFechaToogle} onClick={() => onToggleFecha(f)}>
+                            {f.activa ? "Desactivar" : "Activar"}
+                          </button>
+                          <button className={styles.btnDanger} onClick={() => onEliminarFecha(f.id)}>✕</button>
+                        </>
+                      )}
+                    </div>
+                  </li>
+                );
+              })}
           </ul>
         ) : (
           <p className={styles.sinFechas}>Sin fechas de entrega.</p>
