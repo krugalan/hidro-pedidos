@@ -548,6 +548,31 @@
 
 .btnCerrar:hover { background: #fef3c7; }
 
+.btnDanger:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.fechaConfirmPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.375rem 0;
+}
+
+.fechaConfirmTexto {
+  font-size: 0.8rem;
+  color: #374151;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.fechaConfirmAcciones {
+  display: flex;
+  gap: 0.5rem;
+}
+
 .fechaInactiva {
   color: #9ca3af;
   text-decoration: line-through;

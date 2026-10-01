@@ -238,6 +238,7 @@ function CosechaCard({
   const [nuevaFecha, setNuevaFecha] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [confirmCerrar, setConfirmCerrar] = useState<string | null>(null);
+  const [confirmEliminar, setConfirmEliminar] = useState<string | null>(null);
   const [pedidosPendientes, setPedidosPendientes] = useState<Record<string, number>>({});
   const fechaIdsRef = useRef("");
 
@@ -324,47 +325,66 @@ function CosechaCard({
               .sort((a, b) => a.fecha.localeCompare(b.fecha))
               .map((f) => {
                 const pendientes = pedidosPendientes[f.id] ?? 0;
-                const activaConPendientes = f.activa && pendientes > 0;
+
+                if (confirmCerrar === f.id) {
+                  return (
+                    <li key={f.id} className={styles.fechaItem}>
+                      <div className={styles.fechaConfirmPanel}>
+                        <p className={styles.fechaConfirmTexto}>
+                          Nuevos clientes ya no podrán seleccionar esta fecha. Los pedidos existentes creados con esta fecha seguirán así y deben entregarse en la fecha comprometida.
+                        </p>
+                        <div className={styles.fechaConfirmAcciones}>
+                          <button className={styles.btnDanger} onClick={() => { onCerrarFecha(f); setConfirmCerrar(null); }}>Sí, cerrar</button>
+                          <button className={styles.btnSecundario} onClick={() => setConfirmCerrar(null)}>Cancelar</button>
+                        </div>
+                      </div>
+                    </li>
+                  );
+                }
+
+                if (confirmEliminar === f.id) {
+                  return (
+                    <li key={f.id} className={styles.fechaItem}>
+                      <div className={styles.fechaConfirmPanel}>
+                        <p className={styles.fechaConfirmTexto}>¿Eliminar esta fecha de entrega?</p>
+                        <div className={styles.fechaConfirmAcciones}>
+                          <button className={styles.btnDanger} onClick={() => { onEliminarFecha(f.id); setConfirmEliminar(null); }}>Sí, eliminar</button>
+                          <button className={styles.btnSecundario} onClick={() => setConfirmEliminar(null)}>Cancelar</button>
+                        </div>
+                      </div>
+                    </li>
+                  );
+                }
+
                 return (
                   <li key={f.id} className={`${styles.fechaItem} ${!f.activa ? styles.fechaInactiva : ""}`}>
                     <div className={styles.fechaInfo}>
                       <span>{fechaLarga(f.fecha)}</span>
-                      {activaConPendientes && (
+                      {f.activa && pendientes > 0 && (
                         <span className={styles.pendientesBadge}>
                           {pendientes} pedido{pendientes !== 1 ? "s" : ""} pendiente{pendientes !== 1 ? "s" : ""}
                         </span>
                       )}
                     </div>
                     <div className={styles.fechaAcciones}>
-                      {activaConPendientes ? (
-                        confirmCerrar === f.id ? (
-                          <div className={styles.confirmRow}>
-                            <span className={styles.confirmTxt}>
-                              ¿Cerrar con {pendientes} pedido{pendientes !== 1 ? "s" : ""} pendiente{pendientes !== 1 ? "s" : ""}?
-                            </span>
-                            <button className={styles.btnDanger} onClick={() => { onCerrarFecha(f); setConfirmCerrar(null); }}>
-                              Sí, cerrar
-                            </button>
-                            <button className={styles.btnSecundario} onClick={() => setConfirmCerrar(null)}>No</button>
-                          </div>
-                        ) : (
-                          <>
-                            <button className={styles.btnCerrar} onClick={() => setConfirmCerrar(f.id)}>Cerrar</button>
-                            <button
-                              className={styles.btnDanger}
-                              disabled
-                              title={`Tiene ${pendientes} pedido${pendientes !== 1 ? "s" : ""} pendiente${pendientes !== 1 ? "s" : ""}. Movalos a otra fecha antes de eliminar.`}
-                            >
-                              ✕
-                            </button>
-                          </>
-                        )
+                      {f.activa ? (
+                        <>
+                          <button className={styles.btnCerrar} onClick={() => setConfirmCerrar(f.id)}>
+                            Cerrar fecha de entrega
+                          </button>
+                          <button
+                            className={styles.btnDanger}
+                            disabled={pendientes > 0}
+                            title={pendientes > 0 ? `Tiene ${pendientes} pedido${pendientes !== 1 ? "s" : ""} pendiente${pendientes !== 1 ? "s" : ""}. Movalos a otra fecha antes de eliminar.` : undefined}
+                            onClick={() => setConfirmEliminar(f.id)}
+                          >
+                            🗑
+                          </button>
+                        </>
                       ) : (
                         <>
-                          <button className={styles.btnFechaToogle} onClick={() => onToggleFecha(f)}>
-                            {f.activa ? "Desactivar" : "Activar"}
-                          </button>
-                          <button className={styles.btnDanger} onClick={() => onEliminarFecha(f.id)}>✕</button>
+                          <button className={styles.btnFechaToogle} onClick={() => onToggleFecha(f)}>Activar</button>
+                          <button className={styles.btnDanger} onClick={() => setConfirmEliminar(f.id)}>🗑</button>
                         </>
                       )}
                     </div>
