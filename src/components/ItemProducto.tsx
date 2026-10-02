@@ -1,4 +1,5 @@
 import { formatPrecio } from "../lib/precio";
+import { useState } from "react";
 import type { ProductoUI } from "../types";
 import styles from "./ItemProducto.module.css";
 
@@ -13,6 +14,7 @@ interface Props {
 
 export function ItemProducto({ producto, cantidad, expandido, onAgregar, onQuitar, onExpandir }: Props) {
   const enMax = cantidad >= producto.maxPorProducto;
+  const [fotoLoaded, setFotoLoaded] = useState(false);
 
   if (expandido) {
     return (
@@ -27,11 +29,15 @@ export function ItemProducto({ producto, cantidad, expandido, onAgregar, onQuita
         >
           <div className={styles.expandidoEmoji}>
             {producto.fotoUrl ? (
-              <img
-                src={producto.fotoUrl}
-                alt={producto.nombre}
-                className={styles.expandidoFoto}
-              />
+              <>
+                {!fotoLoaded && <div className={styles.fotoSkeleton} aria-hidden="true" />}
+                <img
+                  src={producto.fotoUrl}
+                  alt={producto.nombre}
+                  className={`${styles.expandidoFoto} ${fotoLoaded ? styles.fotoVisible : styles.fotoOculta}`}
+                  onLoad={() => setFotoLoaded(true)}
+                />
+              </>
             ) : (
               producto.emoji
             )}

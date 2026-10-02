@@ -1,6 +1,6 @@
 /* ── Variables de diseño ─────────────────────────────────────── */
 :root {
-  /* Paleta oscura (siempre activa en la tienda) */
+  /* Paleta oscura */
   --color-fondo:        #0B1810;
   --color-superficie:   #111E16;
   --color-texto:        #DFF0E6;
@@ -18,11 +18,28 @@
   --font-display: 'Bricolage Grotesque', system-ui, sans-serif;
   --font-body:    'Figtree', system-ui, sans-serif;
 
-  color-scheme: dark;
+  color-scheme: light dark;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --color-fondo:        #F4FAF6;
+    --color-superficie:   #FFFFFF;
+    --color-texto:        #0E2418;
+    --color-texto-sec:    #527A62;
+    --color-linea:        #D0E8D8;
+    --color-emoji-bg:     #E2F2E8;
+    --color-fila-activa:  #EAF7EE;
+    --color-accion:       #2A9A4E;
+    --color-accion-texto: #FFFFFF;
+    --color-header-bg:    #0E2418;
+    --color-header-text:  #DFF0E6;
+    --color-foco:         #1A7FC1;
+  }
 }
 
 /* ── Reset mínimo ────────────────────────────────────────────── */
