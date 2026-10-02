@@ -1,5 +1,6 @@
 import { formatPrecio } from "../lib/precio";
-import { useState } from "react";
+import { useState, useCallback } from "react";
+import { createPortal } from "react-dom";
 import type { ProductoUI } from "../types";
 import styles from "./ItemProducto.module.css";
 
@@ -15,6 +16,12 @@ interface Props {
 export function ItemProducto({ producto, cantidad, expandido, onAgregar, onQuitar, onExpandir }: Props) {
   const enMax = cantidad >= producto.maxPorProducto;
   const [fotoLoaded, setFotoLoaded] = useState(false);
+  const [fotoAmpliada, setFotoAmpliada] = useState(false);
+
+  // Si la imagen ya está en caché, img.complete es true al montar y onLoad no dispara
+  const imgRef = useCallback((el: HTMLImageElement | null) => {
+    if (el?.complete) setFotoLoaded(true);
+  }, []);
 
   if (expandido) {
     return (
@@ -27,11 +34,17 @@ export function ItemProducto({ producto, cantidad, expandido, onAgregar, onQuita
           onClick={() => onExpandir(producto.id)}
           onKeyDown={(e) => e.key === "Enter" && onExpandir(producto.id)}
         >
-          <div className={styles.expandidoEmoji}>
+          <div
+            className={styles.expandidoEmoji}
+            onClick={producto.fotoUrl ? (e) => { e.stopPropagation(); setFotoAmpliada(true); } : undefined}
+            style={producto.fotoUrl ? { cursor: "zoom-in" } : undefined}
+            aria-label={producto.fotoUrl ? `Ampliar foto de ${producto.nombre}` : undefined}
+          >
             {producto.fotoUrl ? (
               <>
                 {!fotoLoaded && <div className={styles.fotoSkeleton} aria-hidden="true" />}
                 <img
+                  ref={imgRef}
                   src={producto.fotoUrl}
                   alt={producto.nombre}
                   className={`${styles.expandidoFoto} ${fotoLoaded ? styles.fotoVisible : styles.fotoOculta}`}
@@ -77,6 +90,23 @@ export function ItemProducto({ producto, cantidad, expandido, onAgregar, onQuita
 
         {enMax && (
           <p className={styles.expandidoMaxAviso}>Máximo {producto.maxPorProducto}</p>
+        )}
+
+        {fotoAmpliada && createPortal(
+          <div
+            className={styles.lightbox}
+            onClick={() => setFotoAmpliada(false)}
+            role="dialog"
+            aria-modal="true"
+            aria-label={`Foto de ${producto.nombre}`}
+          >
+            <img
+              src={producto.fotoUrl!}
+              alt={producto.nombre}
+              className={styles.lightboxImg}
+            />
+          </div>,
+          document.body
         )}
       </li>
     );
