@@ -34,6 +34,7 @@ function Tienda() {
         detalle: item.producto!.detalle ?? "",
         precio: item.producto!.precio,
         emoji: item.producto!.emoji ?? "🌿",
+        fotoUrl: item.producto!.foto_url ?? undefined,
         maxPorProducto: item.producto!.max_por_producto,
       }));
   }, [cosechaActiva]);

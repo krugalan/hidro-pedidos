@@ -25,6 +25,7 @@ export interface ProductoUI {
   detalle: string;
   precio: number;
   emoji: string;
+  fotoUrl?: string;
   maxPorProducto: number;
 }
 

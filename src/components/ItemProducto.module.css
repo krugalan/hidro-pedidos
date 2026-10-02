@@ -216,6 +216,13 @@
   line-height: 1;
 }
 
+.expandidoFoto {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 0.875rem;
+}
+
 .expandidoTexto {
   flex: 1;
   min-width: 0;

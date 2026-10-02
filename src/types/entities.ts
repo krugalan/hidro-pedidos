@@ -58,6 +58,7 @@ export interface Producto {
   detalle?: string;
   precio: number;
   emoji?: string;
+  foto_url?: string;
   max_por_producto: number;
   activo: boolean;
   created_at: string;

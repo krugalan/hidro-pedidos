@@ -25,7 +25,17 @@ export function ItemProducto({ producto, cantidad, expandido, onAgregar, onQuita
           onClick={() => onExpandir(producto.id)}
           onKeyDown={(e) => e.key === "Enter" && onExpandir(producto.id)}
         >
-          <div className={styles.expandidoEmoji}>{producto.emoji}</div>
+          <div className={styles.expandidoEmoji}>
+            {producto.fotoUrl ? (
+              <img
+                src={producto.fotoUrl}
+                alt={producto.nombre}
+                className={styles.expandidoFoto}
+              />
+            ) : (
+              producto.emoji
+            )}
+          </div>
           <div className={styles.expandidoTexto}>
             <p className={styles.expandidoNombre}>{producto.nombre}</p>
             <p className={styles.expandidoDetalle}>

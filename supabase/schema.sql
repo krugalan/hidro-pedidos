@@ -47,10 +47,13 @@ CREATE TABLE productos (
   detalle           TEXT,
   precio            INTEGER     NOT NULL,
   emoji             TEXT,
+  foto_url          TEXT,
   max_por_producto  INTEGER     NOT NULL DEFAULT 10,
   activo            BOOLEAN     NOT NULL DEFAULT TRUE,
   created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+-- Si la tabla ya existe, corré esto:
+-- ALTER TABLE productos ADD COLUMN IF NOT EXISTS foto_url TEXT;
 
 -- ------------------------------------------------------------
 -- Cosechas (cada tanda/ciclo de producción)
