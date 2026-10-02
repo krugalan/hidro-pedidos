@@ -1,5 +1,5 @@
 import { Routes, Route } from "react-router-dom";
-import { lazy, Suspense, useState, useMemo } from "react";
+import { lazy, Suspense, useState, useMemo, useEffect } from "react";
 import { Header } from "./components/Header";
 import { ListaProductos } from "./components/ListaProductos";
 import { BarraTotal } from "./components/BarraTotal";
@@ -38,6 +38,15 @@ function Tienda() {
         maxPorProducto: item.producto!.max_por_producto,
       }));
   }, [cosechaActiva]);
+
+  useEffect(() => {
+    productos.forEach((p) => {
+      if (p.fotoUrl) {
+        const img = new Image();
+        img.src = p.fotoUrl;
+      }
+    });
+  }, [productos]);
 
   const { items, agregar, quitar, getCantidad, subtotal, totalUnidades, limpiar } = useCarrito(productos);
 
