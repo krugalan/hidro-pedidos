@@ -9,7 +9,6 @@ import { Avisame } from "./components/Avisame";
 import { Gracias } from "./components/Gracias";
 import { useCarrito } from "./hooks/useCarrito";
 import { useCosechaActiva } from "./hooks/useCosechaActiva";
-import { useZonas } from "./hooks/useZonas";
 import { useConfiguracion } from "./hooks/useConfiguracion";
 import type { ProductoUI, PedidoResumen } from "./types";
 import styles from "./App.module.css";
@@ -18,7 +17,6 @@ const AdminApp = lazy(() => import("./pages/admin/AdminApp").then((m) => ({ defa
 
 function Tienda() {
   const { cosechaActiva, proximaCosecha, loading } = useCosechaActiva();
-  const { zonas } = useZonas();
   const { cfg } = useConfiguracion();
   const [hojaAbierta, setHojaAbierta] = useState(false);
   const [avisameAbierto, setAvisameAbierto] = useState(false);
@@ -106,7 +104,6 @@ function Tienda() {
         <HojaCierre
           items={items}
           subtotal={subtotal}
-          zonas={zonas}
           fechas={cosechaActiva?.fechas ?? []}
           cosechaId={cosechaActiva?.id}
           whatsapp={cfg.whatsapp}

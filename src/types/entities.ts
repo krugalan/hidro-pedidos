@@ -42,6 +42,14 @@ export interface CosechaItem {
   producto?: Producto;
 }
 
+export interface FechaEntregaZona {
+  id: string;
+  fecha_entrega_id: string;
+  zona_id: string;
+  created_at: string;
+  zona?: Zona;
+}
+
 export interface FechaEntrega {
   id: string;
   cosecha_id: string;
@@ -50,6 +58,7 @@ export interface FechaEntrega {
   hora_fin?: string;
   activa: boolean;
   created_at: string;
+  zonas?: FechaEntregaZona[];
 }
 
 export interface Producto {

@@ -6,7 +6,7 @@ import { formatPeso, formatPrecio } from "../lib/precio";
 import { siguienteNumeroPedido } from "../lib/numeroPedido";
 import { supabase } from "../lib/supabase";
 import type { ItemCarrito, TipoEntrega, TipoPago, PedidoResumen } from "../types";
-import type { Zona, FechaEntrega } from "../types/entities";
+import type { FechaEntrega } from "../types/entities";
 import styles from "./HojaCierre.module.css";
 
 const DATOS_BANCO = {
@@ -18,7 +18,6 @@ const DATOS_BANCO = {
 interface Props {
   items: ItemCarrito[];
   subtotal: number;
-  zonas: Zona[];
   fechas: FechaEntrega[];
   cosechaId?: string;
   whatsapp: string;
@@ -32,7 +31,7 @@ const fechaLarga = (iso: string) =>
     weekday: "long", day: "numeric", month: "long",
   });
 
-export function HojaCierre({ items, subtotal, zonas, fechas, cosechaId, whatsapp, whatsapp2, onCerrar, onEnviado }: Props) {
+export function HojaCierre({ items, subtotal, fechas, cosechaId, whatsapp, whatsapp2, onCerrar, onEnviado }: Props) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [enviando, setEnviando] = useState(false);
   const entregaChangedRef = useRef(false);
@@ -52,7 +51,7 @@ export function HojaCierre({ items, subtotal, zonas, fechas, cosechaId, whatsapp
 
   const hoy = new Date().toISOString().split("T")[0];
   const fechasActivas = fechas
-    .filter((f) => f.activa && f.fecha >= hoy)
+    .filter((f) => f.activa && f.fecha >= hoy && (f.zonas?.length ?? 0) > 0)
     .sort((a, b) => a.fecha.localeCompare(b.fecha));
 
   const [fechaId, setFechaId] = useState(fechasActivas[0]?.id ?? "");
@@ -60,8 +59,11 @@ export function HojaCierre({ items, subtotal, zonas, fechas, cosechaId, whatsapp
 
   const fechaSeleccionada = fechasActivas.find((f) => f.id === fechaId);
 
-  const zonasDelivery = zonas.filter((z) => z.tipo === "delivery");
-  const zonasRetiro = zonas.filter((z) => z.tipo === "retiro");
+  const zonasDeFecha = fechaSeleccionada?.zonas?.map((fez) => fez.zona!).filter(Boolean) ?? [];
+  const zonasDelivery = zonasDeFecha.filter((z) => z.tipo === "delivery");
+  const zonasRetiro = zonasDeFecha.filter((z) => z.tipo === "retiro");
+  const soloDelivery = zonasDelivery.length > 0 && zonasRetiro.length === 0;
+  const soloRetiro = zonasRetiro.length > 0 && zonasDelivery.length === 0;
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -77,6 +79,13 @@ export function HojaCierre({ items, subtotal, zonas, fechas, cosechaId, whatsapp
     setZonaId("");
   }, [entrega]);
 
+  useEffect(() => {
+    setZonaId("");
+    if (zonasDelivery.length > 0 && zonasRetiro.length === 0) setEntrega("domicilio");
+    else if (zonasRetiro.length > 0 && zonasDelivery.length === 0) setEntrega("retiro");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fechaId]);
+
   const cerrar = () => dialogRef.current?.close();
 
   const copiar = async (texto: string, setter: (v: boolean) => void) => {
@@ -87,7 +96,7 @@ export function HojaCierre({ items, subtotal, zonas, fechas, cosechaId, whatsapp
     } catch { /* sin permisos */ }
   };
 
-  const zonaSeleccionada = zonas.find((z) => z.id === zonaId);
+  const zonaSeleccionada = zonasDeFecha.find((z) => z.id === zonaId);
   const nombreValido = nombre.trim().length >= 2;
   const direccionValida = direccion.trim().length >= 5;
   const necesitaDireccion = entrega === "domicilio";
@@ -287,27 +296,10 @@ export function HojaCierre({ items, subtotal, zonas, fechas, cosechaId, whatsapp
           </div>
 
           {/* Tipo de entrega */}
-          <fieldset className={styles.fieldset}>
-            <legend className={styles.legend}>¿Cómo lo recibís?</legend>
-            <div className={styles.tarjetas}>
-              <label className={`${styles.tarjeta} ${entrega === "domicilio" ? styles.tarjetaActiva : ""}`}>
-                <input type="radio" name="entrega" value="domicilio" checked={entrega === "domicilio"} onChange={() => setEntrega("domicilio")} className={styles.radioOculto} />
-                <span className={styles.tarjetaTitulo}>Envío a domicilio</span>
-                <span className={styles.tarjetaSub}>Solo dentro de Pinamar</span>
-                <span className={styles.tarjetaCosto}>+ {formatPeso(config.envioCosto)}</span>
-              </label>
-
-              <label className={`${styles.tarjeta} ${entrega === "retiro" ? styles.tarjetaActiva : ""}`}>
-                <input type="radio" name="entrega" value="retiro" checked={entrega === "retiro"} onChange={() => setEntrega("retiro")} className={styles.radioOculto} />
-                <span className={styles.tarjetaTitulo}>Retiro</span>
-                <span className={styles.tarjetaSub}>Pasá a buscar tu pedido</span>
-                <span className={styles.tarjetaCosto}>Sin cargo</span>
-              </label>
-            </div>
-
-            {entrega === "retiro" && zonasRetiro.length > 0 && (
-              <div className={styles.campo} style={{ marginTop: "0.75rem" }}>
-                <label className={styles.label} htmlFor="zona-retiro">Punto de retiro</label>
+          {soloRetiro ? (
+            <div className={styles.campos}>
+              <div className={styles.campo}>
+                <label className={styles.label} htmlFor="zona-retiro">Seleccioná el lugar donde vas a retirar tu pedido:</label>
                 <select id="zona-retiro" className={styles.input} value={zonaId} onChange={(e) => setZonaId(e.target.value)}>
                   <option value="">Seleccioná un punto…</option>
                   {zonasRetiro.map((z) => (
@@ -315,11 +307,12 @@ export function HojaCierre({ items, subtotal, zonas, fechas, cosechaId, whatsapp
                   ))}
                 </select>
               </div>
-            )}
-
-            {entrega === "domicilio" && zonasDelivery.length > 0 && (
-              <div className={styles.campo} style={{ marginTop: "0.75rem" }}>
-                <label className={styles.label} htmlFor="zona-delivery">Zona</label>
+            </div>
+          ) : soloDelivery ? (
+            <div className={styles.campos}>
+              <div className={styles.campo}>
+                <label className={styles.label} htmlFor="zona-delivery">Seleccioná la zona a donde debemos llevar tu pedido:</label>
+                <span className={styles.ayuda}>+ {formatPeso(config.envioCosto)}</span>
                 <select id="zona-delivery" className={styles.input} value={zonaId} onChange={(e) => setZonaId(e.target.value)}>
                   <option value="">Seleccioná tu zona…</option>
                   {zonasDelivery.map((z) => (
@@ -327,8 +320,51 @@ export function HojaCierre({ items, subtotal, zonas, fechas, cosechaId, whatsapp
                   ))}
                 </select>
               </div>
-            )}
-          </fieldset>
+            </div>
+          ) : (
+            <fieldset className={styles.fieldset}>
+              <legend className={styles.legend}>¿Cómo lo recibís?</legend>
+              <div className={styles.tarjetas}>
+                <label className={`${styles.tarjeta} ${entrega === "domicilio" ? styles.tarjetaActiva : ""}`}>
+                  <input type="radio" name="entrega" value="domicilio" checked={entrega === "domicilio"} onChange={() => setEntrega("domicilio")} className={styles.radioOculto} />
+                  <span className={styles.tarjetaTitulo}>Envío a domicilio</span>
+                  <span className={styles.tarjetaSub}>Solo dentro de Pinamar</span>
+                  <span className={styles.tarjetaCosto}>+ {formatPeso(config.envioCosto)}</span>
+                </label>
+
+                <label className={`${styles.tarjeta} ${entrega === "retiro" ? styles.tarjetaActiva : ""}`}>
+                  <input type="radio" name="entrega" value="retiro" checked={entrega === "retiro"} onChange={() => setEntrega("retiro")} className={styles.radioOculto} />
+                  <span className={styles.tarjetaTitulo}>Retiro</span>
+                  <span className={styles.tarjetaSub}>Pasá a buscar tu pedido</span>
+                  <span className={styles.tarjetaCosto}>Sin cargo</span>
+                </label>
+              </div>
+
+              {entrega === "retiro" && zonasRetiro.length > 0 && (
+                <div className={styles.campo} style={{ marginTop: "0.75rem" }}>
+                  <label className={styles.label} htmlFor="zona-retiro">Punto de retiro</label>
+                  <select id="zona-retiro" className={styles.input} value={zonaId} onChange={(e) => setZonaId(e.target.value)}>
+                    <option value="">Seleccioná un punto…</option>
+                    {zonasRetiro.map((z) => (
+                      <option key={z.id} value={z.id}>{z.nombre}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {entrega === "domicilio" && zonasDelivery.length > 0 && (
+                <div className={styles.campo} style={{ marginTop: "0.75rem" }}>
+                  <label className={styles.label} htmlFor="zona-delivery">Zona</label>
+                  <select id="zona-delivery" className={styles.input} value={zonaId} onChange={(e) => setZonaId(e.target.value)}>
+                    <option value="">Seleccioná tu zona…</option>
+                    {zonasDelivery.map((z) => (
+                      <option key={z.id} value={z.id}>{z.nombre}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </fieldset>
+          )}
 
           {/* Datos del cliente */}
           <div className={styles.campos}>

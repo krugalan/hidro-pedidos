@@ -36,7 +36,7 @@ export function useCosechaActiva() {
       for (const c of activas) {
         const { data: fechas } = await supabase
           .from("fechas_entrega")
-          .select("*")
+          .select("*, zonas:fecha_entrega_zonas(*, zona:zonas(*))")
           .eq("cosecha_id", c.id)
           .order("fecha", { ascending: true });
         const conFechas = { ...c, fechas: (fechas ?? []) as FechaEntrega[] };
@@ -55,7 +55,7 @@ export function useCosechaActiva() {
         const ultima = activas[activas.length - 1];
         const { data: fechas } = await supabase
           .from("fechas_entrega")
-          .select("*")
+          .select("*, zonas:fecha_entrega_zonas(*, zona:zonas(*))")
           .eq("cosecha_id", ultima.id)
           .order("fecha", { ascending: true });
         activa = { ...ultima, fechas: (fechas ?? []) as FechaEntrega[] };

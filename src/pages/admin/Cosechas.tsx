@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "../../lib/supabase";
-import type { Cosecha, FechaEntrega, Producto } from "../../types/entities";
+import type { Cosecha, FechaEntrega, Producto, Zona } from "../../types/entities";
 import styles from "./Admin.module.css";
 
 function semanaAnio(iso: string): string {
@@ -22,6 +22,7 @@ const fechaCorta = (iso: string) =>
 export function Cosechas() {
   const [cosechas, setCosechas] = useState<Cosecha[]>([]);
   const [todosProductos, setTodosProductos] = useState<Producto[]>([]);
+  const [todasLasZonas, setTodasLasZonas] = useState<Zona[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -31,15 +32,17 @@ export function Cosechas() {
 
   const cargar = async () => {
     setLoading(true);
-    const [{ data: cos }, { data: prods }] = await Promise.all([
+    const [{ data: cos }, { data: prods }, { data: zonas }] = await Promise.all([
       supabase
         .from("cosechas")
-        .select("*, items:cosecha_items(*, producto:productos(*)), fechas:fechas_entrega(*)")
+        .select("*, items:cosecha_items(*, producto:productos(*)), fechas:fechas_entrega(*, zonas:fecha_entrega_zonas(*, zona:zonas(*)))")
         .order("fecha_cosecha", { ascending: false }),
       supabase.from("productos").select("*").eq("activo", true).order("nombre"),
+      supabase.from("zonas").select("*").order("nombre"),
     ]);
     setCosechas((cos ?? []) as Cosecha[]);
     setTodosProductos((prods ?? []) as Producto[]);
+    setTodasLasZonas((zonas ?? []) as Zona[]);
     setLoading(false);
   };
 
@@ -168,6 +171,15 @@ export function Cosechas() {
     cargar();
   };
 
+  const toggleZonaEnFecha = async (fechaId: string, zonaId: string, asignada: boolean) => {
+    if (asignada) {
+      await supabase.from("fecha_entrega_zonas").delete().eq("fecha_entrega_id", fechaId).eq("zona_id", zonaId);
+    } else {
+      await supabase.from("fecha_entrega_zonas").insert({ fecha_entrega_id: fechaId, zona_id: zonaId });
+    }
+    cargar();
+  };
+
   if (loading) return <div className={styles.estado}>Cargando cosechas…</div>;
 
   return (
@@ -205,6 +217,7 @@ export function Cosechas() {
               key={c.id}
               cosecha={c}
               todosProductos={todosProductos}
+              todasLasZonas={todasLasZonas}
               onToggleActiva={() => toggleActiva(c)}
               onEliminar={() => eliminarCosecha(c)}
               onToggleProducto={(pid) => toggleProducto(c, pid)}
@@ -212,6 +225,7 @@ export function Cosechas() {
               onEliminarFecha={eliminarFecha}
               onToggleFecha={toggleFecha}
               onCerrarFecha={cerrarFecha}
+              onToggleZona={toggleZonaEnFecha}
             />
           ))
         )}
@@ -221,12 +235,13 @@ export function Cosechas() {
 }
 
 function CosechaCard({
-  cosecha, todosProductos,
+  cosecha, todosProductos, todasLasZonas,
   onToggleActiva, onEliminar, onToggleProducto,
-  onAgregarFecha, onEliminarFecha, onToggleFecha, onCerrarFecha,
+  onAgregarFecha, onEliminarFecha, onToggleFecha, onCerrarFecha, onToggleZona,
 }: {
   cosecha: Cosecha;
   todosProductos: Producto[];
+  todasLasZonas: Zona[];
   onToggleActiva: () => void;
   onEliminar: () => void;
   onToggleProducto: (id: string) => void;
@@ -234,6 +249,7 @@ function CosechaCard({
   onEliminarFecha: (id: string) => void;
   onToggleFecha: (f: FechaEntrega) => void;
   onCerrarFecha: (f: FechaEntrega) => void;
+  onToggleZona: (fechaId: string, zonaId: string, asignada: boolean) => void;
 }) {
   const [nuevaFecha, setNuevaFecha] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -356,38 +372,85 @@ function CosechaCard({
                   );
                 }
 
+                const zonasAsignadas = new Set((f.zonas ?? []).map((fez) => fez.zona_id));
+                const zonasDelivery = todasLasZonas.filter((z) => z.tipo === "delivery");
+                const zonasRetiro = todasLasZonas.filter((z) => z.tipo === "retiro");
+
                 return (
                   <li key={f.id} className={`${styles.fechaItem} ${!f.activa ? styles.fechaInactiva : ""}`}>
-                    <div className={styles.fechaInfo}>
-                      <span>{fechaLarga(f.fecha)}</span>
-                      {f.activa && pendientes > 0 && (
-                        <span className={styles.pendientesBadge}>
-                          {pendientes} pedido{pendientes !== 1 ? "s" : ""} pendiente{pendientes !== 1 ? "s" : ""}
-                        </span>
-                      )}
+                    <div className={styles.fechaItemHeader}>
+                      <div className={styles.fechaInfo}>
+                        <span>{fechaLarga(f.fecha)}</span>
+                        {f.activa && pendientes > 0 && (
+                          <span className={styles.pendientesBadge}>
+                            {pendientes} pedido{pendientes !== 1 ? "s" : ""} pendiente{pendientes !== 1 ? "s" : ""}
+                          </span>
+                        )}
+                      </div>
+                      <div className={styles.fechaAcciones}>
+                        {f.activa ? (
+                          <>
+                            <button className={styles.btnCerrar} onClick={() => setConfirmCerrar(f.id)}>
+                              Cerrar fecha de entrega
+                            </button>
+                            <button
+                              className={styles.btnDanger}
+                              disabled={pendientes > 0}
+                              title={pendientes > 0 ? `Tiene ${pendientes} pedido${pendientes !== 1 ? "s" : ""} pendiente${pendientes !== 1 ? "s" : ""}. Movalos a otra fecha antes de eliminar.` : undefined}
+                              onClick={() => setConfirmEliminar(f.id)}
+                            >
+                              🗑
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <button className={styles.btnFechaToogle} onClick={() => onToggleFecha(f)}>Activar</button>
+                            <button className={styles.btnDanger} onClick={() => setConfirmEliminar(f.id)}>🗑</button>
+                          </>
+                        )}
+                      </div>
                     </div>
-                    <div className={styles.fechaAcciones}>
-                      {f.activa ? (
-                        <>
-                          <button className={styles.btnCerrar} onClick={() => setConfirmCerrar(f.id)}>
-                            Cerrar fecha de entrega
-                          </button>
-                          <button
-                            className={styles.btnDanger}
-                            disabled={pendientes > 0}
-                            title={pendientes > 0 ? `Tiene ${pendientes} pedido${pendientes !== 1 ? "s" : ""} pendiente${pendientes !== 1 ? "s" : ""}. Movalos a otra fecha antes de eliminar.` : undefined}
-                            onClick={() => setConfirmEliminar(f.id)}
-                          >
-                            🗑
-                          </button>
-                        </>
-                      ) : (
-                        <>
-                          <button className={styles.btnFechaToogle} onClick={() => onToggleFecha(f)}>Activar</button>
-                          <button className={styles.btnDanger} onClick={() => setConfirmEliminar(f.id)}>🗑</button>
-                        </>
-                      )}
-                    </div>
+                    {todasLasZonas.length > 0 && (
+                      <div className={styles.zonasBloque}>
+                        <p className={styles.zonasLabel}>Zonas disponibles para esta fecha</p>
+                        {zonasDelivery.length > 0 && (
+                          <div className={styles.zonasTipo}>
+                            <span className={styles.zonasTipoLabel}>Delivery</span>
+                            <div className={styles.zonasCheckGrid}>
+                              {zonasDelivery.map((z) => (
+                                <label key={z.id} className={`${styles.zonaCheck} ${zonasAsignadas.has(z.id) ? styles.zonaCheckActiva : ""}`}>
+                                  <input
+                                    type="checkbox"
+                                    checked={zonasAsignadas.has(z.id)}
+                                    onChange={() => onToggleZona(f.id, z.id, zonasAsignadas.has(z.id))}
+                                    className={styles.radioOculto}
+                                  />
+                                  <span>{z.nombre}</span>
+                                </label>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {zonasRetiro.length > 0 && (
+                          <div className={styles.zonasTipo}>
+                            <span className={styles.zonasTipoLabel}>Retiro</span>
+                            <div className={styles.zonasCheckGrid}>
+                              {zonasRetiro.map((z) => (
+                                <label key={z.id} className={`${styles.zonaCheck} ${zonasAsignadas.has(z.id) ? styles.zonaCheckActiva : ""}`}>
+                                  <input
+                                    type="checkbox"
+                                    checked={zonasAsignadas.has(z.id)}
+                                    onChange={() => onToggleZona(f.id, z.id, zonasAsignadas.has(z.id))}
+                                    className={styles.radioOculto}
+                                  />
+                                  <span>{z.nombre}</span>
+                                </label>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </li>
                 );
               })}
