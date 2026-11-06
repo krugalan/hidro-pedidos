@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
+import { fechasDisponibles, hoyIso } from "../lib/disponibilidad";
 import type { Cosecha, FechaEntrega } from "../types/entities";
 
 export function useCosechaActiva() {
@@ -8,7 +9,7 @@ export function useCosechaActiva() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const hoy = new Date().toISOString().split("T")[0];
+    const hoy = hoyIso();
 
     async function cargar() {
       // Cargar todas las cosechas activas (ASC) + próxima inactiva en paralelo
@@ -31,18 +32,19 @@ export function useCosechaActiva() {
       const activas = (activasRaw ?? []) as Cosecha[];
       let activa: Cosecha | null = null;
 
-      // Buscar la primera cosecha activa con al menos una fecha activa >= hoy.
-      // Una cosecha activa sin fechas actuales/futuras se trata como cerrada.
+      // Buscar la primera cosecha activa con al menos una fecha disponible
+      // (abierta, actual o futura y con algún punto de entrega).
+      // Una cosecha activa sin fechas disponibles se trata como cerrada.
       // Fechas en query separado: el join anidado falla silenciosamente en cold start.
       for (const c of activas) {
-        const { data: fechas } = await supabase
+        const { data } = await supabase
           .from("fechas_entrega")
           .select("*, zonas:fecha_entrega_zonas(*, zona:zonas(*))")
           .eq("cosecha_id", c.id)
           .order("fecha", { ascending: true });
-        const tieneFechaFutura = (fechas ?? []).some((f) => f.activa && f.fecha >= hoy);
-        if (tieneFechaFutura) {
-          activa = { ...c, fechas: (fechas ?? []) as FechaEntrega[] };
+        const fechas = (data ?? []) as FechaEntrega[];
+        if (fechasDisponibles(fechas, hoy).length > 0) {
+          activa = { ...c, fechas };
           break;
         }
       }

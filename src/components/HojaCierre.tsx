@@ -5,6 +5,7 @@ import { armarMensaje } from "../lib/whatsapp";
 import { formatPeso, formatPrecio } from "../lib/precio";
 import { siguienteNumeroPedido } from "../lib/numeroPedido";
 import { supabase } from "../lib/supabase";
+import { fechasDisponibles, hoyIso } from "../lib/disponibilidad";
 import type { ItemCarrito, TipoEntrega, TipoPago, PedidoResumen } from "../types";
 import type { FechaEntrega } from "../types/entities";
 import styles from "./HojaCierre.module.css";
@@ -49,10 +50,7 @@ export function HojaCierre({ items, subtotal, fechas, cosechaId, whatsapp, whats
   const [copiadoAlias, setCopiadoAlias] = useState(false);
   const [copiadoCvu, setCopiadoCvu] = useState(false);
 
-  const hoy = new Date().toISOString().split("T")[0];
-  const fechasActivas = fechas
-    .filter((f) => f.activa && f.fecha >= hoy && (f.zonas?.length ?? 0) > 0)
-    .sort((a, b) => a.fecha.localeCompare(b.fecha));
+  const fechasActivas = fechasDisponibles(fechas, hoyIso());
 
   const [fechaId, setFechaId] = useState(fechasActivas[0]?.id ?? "");
   const [eligiendoFecha, setEligiendoFecha] = useState(false);
@@ -102,7 +100,7 @@ export function HojaCierre({ items, subtotal, fechas, cosechaId, whatsapp, whats
   const necesitaDireccion = entrega === "domicilio";
   const zonasParaEntrega = entrega === "domicilio" ? zonasDelivery : entrega === "retiro" ? zonasRetiro : [];
   const zonaValida = entrega === null || zonasParaEntrega.length === 0 || zonaId !== "";
-  const fechaValida = fechasActivas.length === 0 || fechaId !== "";
+  const fechaValida = fechaId !== "";
 
   const pedidoCompleto =
     items.length > 0 &&
@@ -257,7 +255,7 @@ export function HojaCierre({ items, subtotal, fechas, cosechaId, whatsapp, whats
             <p className={styles.seccionFechaLabel}>📅 Fecha de entrega</p>
 
             {fechasActivas.length === 0 ? (
-              <p className={styles.sinFecha}>Pronto confirmamos la fecha de entrega.</p>
+              <p className={styles.sinFecha}>Por ahora no hay fechas de entrega disponibles.</p>
             ) : eligiendoFecha ? (
               <div className={styles.fechaOpciones}>
                 {fechasActivas.map((f) => (

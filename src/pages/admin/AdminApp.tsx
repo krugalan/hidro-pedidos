@@ -4,6 +4,7 @@ import { supabase } from "../../lib/supabase";
 import { AdminLogin } from "./AdminLogin";
 import { AdminLayout } from "./AdminLayout";
 import { Cosechas } from "./Cosechas";
+import { CosechaDetalle } from "./CosechaDetalle";
 import { Productos } from "./Productos";
 import { Pedidos } from "./Pedidos";
 import { Clientes } from "./Clientes";
@@ -41,6 +42,7 @@ export function AdminApp() {
       <Route element={<AdminLayout user={user} />}>
         <Route index element={<Navigate to="/admin/cosechas" replace />} />
         <Route path="cosechas" element={<Cosechas />} />
+        <Route path="cosechas/:id" element={<CosechaDetalle />} />
         <Route path="productos" element={<Productos />} />
         <Route path="pedidos" element={<Pedidos />} />
         <Route path="clientes" element={<Clientes />} />

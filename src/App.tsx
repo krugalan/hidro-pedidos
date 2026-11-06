@@ -10,6 +10,7 @@ import { Gracias } from "./components/Gracias";
 import { useCarrito } from "./hooks/useCarrito";
 import { useCosechaActiva } from "./hooks/useCosechaActiva";
 import { useConfiguracion } from "./hooks/useConfiguracion";
+import { fechasDisponibles, hoyIso } from "./lib/disponibilidad";
 import type { ProductoUI, PedidoResumen } from "./types";
 import styles from "./App.module.css";
 
@@ -48,11 +49,7 @@ function Tienda() {
 
   const { items, agregar, quitar, getCantidad, subtotal, totalUnidades, limpiar } = useCarrito(productos);
 
-  const hoy = new Date().toISOString().split("T")[0];
-  const fechasEntrega = cosechaActiva?.fechas
-    ?.filter((f) => f.activa && f.fecha >= hoy)
-    .sort((a, b) => a.fecha.localeCompare(b.fecha))
-    .map((f) => f.fecha) ?? [];
+  const fechasEntrega = fechasDisponibles(cosechaActiva?.fechas, hoyIso()).map((f) => f.fecha);
 
   if (loading) {
     return (

@@ -1,469 +1,64 @@
-import { useEffect, useRef, useState } from "react";
-import { supabase } from "../../lib/supabase";
-import type { Cosecha, FechaEntrega, Producto, Zona } from "../../types/entities";
+import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import { estadoCosecha, hoyIso } from "../../lib/disponibilidad";
+import type { Cosecha } from "../../types/entities";
+import { cargarCosechas, estadoFecha, fechaConAnio, nombreCorto, plural } from "./cosechaUtils";
+import { BadgeCosecha, IconoMas } from "./CosechaUI";
+import { NuevaCosechaDialog } from "./NuevaCosechaDialog";
 import styles from "./Admin.module.css";
-
-function semanaAnio(iso: string): string {
-  const d = new Date(iso + "T00:00:00");
-  d.setDate(d.getDate() + 3 - ((d.getDay() + 6) % 7));
-  const semana1 = new Date(d.getFullYear(), 0, 4);
-  const semana = 1 + Math.round(
-    ((d.getTime() - semana1.getTime()) / 86400000 - 3 + ((semana1.getDay() + 6) % 7)) / 7
-  );
-  return `Semana ${semana} del ${d.getFullYear()}`;
-}
-
-const fechaLarga = (iso: string) =>
-  new Date(iso + "T00:00:00").toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long" });
-
-const fechaCorta = (iso: string) =>
-  new Date(iso + "T00:00:00").toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" });
 
 export function Cosechas() {
   const [cosechas, setCosechas] = useState<Cosecha[]>([]);
-  const [todosProductos, setTodosProductos] = useState<Producto[]>([]);
-  const [todasLasZonas, setTodasLasZonas] = useState<Zona[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [cargando, setCargando] = useState(true);
   const [error, setError] = useState("");
+  const [creando, setCreando] = useState(false);
+  const hoy = hoyIso();
 
-  const [fechaCosecha, setFechaCosecha] = useState("");
-  const [fechaEntrega, setFechaEntrega] = useState("");
-  const [guardando, setGuardando] = useState(false);
+  useEffect(() => {
+    cargarCosechas()
+      .then(setCosechas)
+      .catch(() => setError("No pudimos cargar las cosechas. Revisá la conexión y recargá la página."))
+      .finally(() => setCargando(false));
+  }, []);
 
-  const cargar = async () => {
-    setLoading(true);
-    const [{ data: cos }, { data: prods }, { data: zonas }] = await Promise.all([
-      supabase
-        .from("cosechas")
-        .select("*, items:cosecha_items(*, producto:productos(*)), fechas:fechas_entrega(*, zonas:fecha_entrega_zonas(*, zona:zonas(*)))")
-        .order("fecha_cosecha", { ascending: false }),
-      supabase.from("productos").select("*").eq("activo", true).order("nombre"),
-      supabase.from("zonas").select("*").order("nombre"),
-    ]);
-    setCosechas((cos ?? []) as Cosecha[]);
-    setTodosProductos((prods ?? []) as Producto[]);
-    setTodasLasZonas((zonas ?? []) as Zona[]);
-    setLoading(false);
-  };
-
-  useEffect(() => { cargar(); }, []);
-
-  const crearCosecha = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setGuardando(true);
-    setError("");
-
-    const { count: duplicada } = await supabase
-      .from("cosechas")
-      .select("id", { count: "exact", head: true })
-      .eq("fecha_cosecha", fechaCosecha);
-
-    if ((duplicada ?? 0) > 0) {
-      setError(`Ya existe una cosecha con fecha de cosecha ${fechaCorta(fechaCosecha)}.`);
-      setGuardando(false);
-      return;
-    }
-
-    const { data: cosecha, error: err } = await supabase
-      .from("cosechas")
-      .insert({ nombre: semanaAnio(fechaCosecha), fecha_cosecha: fechaCosecha, activa: true })
-      .select()
-      .single();
-
-    if (err || !cosecha) { setError(err?.message ?? "Error al crear."); setGuardando(false); return; }
-
-    if (fechaEntrega) {
-      await supabase.from("fechas_entrega").insert({ cosecha_id: cosecha.id, fecha: fechaEntrega, activa: true });
-    }
-
-    setFechaCosecha(""); setFechaEntrega("");
-    setGuardando(false);
-    cargar();
-  };
-
-  const eliminarCosecha = async (cosecha: Cosecha) => {
-    // Verificar si hay pedidos activos (pendientes o entregados)
-    const { count: activos } = await supabase
-      .from("pedidos")
-      .select("id", { count: "exact", head: true })
-      .eq("cosecha_id", cosecha.id)
-      .in("estado", ["pendiente", "pagado", "entregado"]);
-
-    if ((activos ?? 0) > 0) {
-      setError(`"${cosecha.nombre}" tiene pedidos activos y no puede eliminarse.`);
-      return;
-    }
-
-    // Obtener IDs de pedidos cancelados para borrarlos en cascada
-    const { data: cancelados } = await supabase
-      .from("pedidos")
-      .select("id")
-      .eq("cosecha_id", cosecha.id)
-      .eq("estado", "cancelado");
-
-    if (cancelados?.length) {
-      const ids = cancelados.map((p) => p.id);
-      await supabase.from("pedido_items").delete().in("pedido_id", ids);
-      await supabase.from("pedidos").delete().in("id", ids);
-    }
-
-    await supabase.from("cosechas").delete().eq("id", cosecha.id);
-    cargar();
-  };
-
-  const toggleActiva = async (cosecha: Cosecha) => {
-    await supabase.from("cosechas").update({ activa: !cosecha.activa }).eq("id", cosecha.id);
-    cargar();
-  };
-
-  const toggleProducto = async (cosecha: Cosecha, productoId: string) => {
-    const existente = cosecha.items?.find((i) => i.producto_id === productoId);
-    if (existente) {
-      await supabase.from("cosecha_items").delete().eq("id", existente.id);
-    } else {
-      await supabase.from("cosecha_items").insert({ cosecha_id: cosecha.id, producto_id: productoId });
-    }
-    cargar();
-  };
-
-  const agregarFecha = async (cosechaId: string, fechaNueva: string, fechasExistentes: FechaEntrega[]) => {
-    if (!fechaNueva) return;
-    if (fechasExistentes.some((f) => f.fecha === fechaNueva)) {
-      setError("Esa fecha de entrega ya existe en esta cosecha.");
-      return;
-    }
-    await supabase.from("fechas_entrega").insert({ cosecha_id: cosechaId, fecha: fechaNueva, activa: true });
-    cargar();
-  };
-
-  const eliminarFecha = async (id: string) => {
-    const { count } = await supabase
-      .from("pedidos")
-      .select("id", { count: "exact", head: true })
-      .eq("fecha_entrega_id", id)
-      .in("estado", ["pendiente", "pagado"]);
-    if ((count ?? 0) > 0) {
-      setError(`Esta fecha tiene ${count} pedido${count === 1 ? "" : "s"} pendiente${count === 1 ? "" : "s"}. Movalos a otra fecha antes de eliminarla.`);
-      return;
-    }
-    await supabase.from("fechas_entrega").delete().eq("id", id);
-    cargar();
-  };
-
-  const toggleFecha = async (fecha: FechaEntrega) => {
-    if (fecha.activa) {
-      const { count } = await supabase
-        .from("pedidos")
-        .select("id", { count: "exact", head: true })
-        .eq("fecha_entrega_id", fecha.id)
-        .in("estado", ["pendiente", "pagado"]);
-      if ((count ?? 0) > 0) {
-        setError(`Esta fecha tiene ${count} pedido${count === 1 ? "" : "s"} pendiente${count === 1 ? "" : "s"}. Usá "Cerrar" para desactivarla igual.`);
-        return;
-      }
-    }
-    await supabase.from("fechas_entrega").update({ activa: !fecha.activa }).eq("id", fecha.id);
-    cargar();
-  };
-
-  const cerrarFecha = async (fecha: FechaEntrega) => {
-    await supabase.from("fechas_entrega").update({ activa: false }).eq("id", fecha.id);
-    cargar();
-  };
-
-  const toggleZonaEnFecha = async (fechaId: string, zonaId: string, asignada: boolean) => {
-    if (asignada) {
-      await supabase.from("fecha_entrega_zonas").delete().eq("fecha_entrega_id", fechaId).eq("zona_id", zonaId);
-    } else {
-      await supabase.from("fecha_entrega_zonas").insert({ fecha_entrega_id: fechaId, zona_id: zonaId });
-    }
-    cargar();
-  };
-
-  if (loading) return <div className={styles.estado}>Cargando cosechas…</div>;
+  if (cargando) return <div className={styles.pagina}><p className={styles.estado}>Cargando cosechas…</p></div>;
 
   return (
     <div className={styles.pagina}>
-      <h1 className={styles.paginaTitulo}>Cosechas</h1>
-
-      {error && <p className={styles.errorMsg} style={{ marginBottom: "1rem" }}>{error}</p>}
-
-      <section className={styles.card}>
-        <h2 className={styles.cardTitulo}>Nueva cosecha</h2>
-        <form onSubmit={crearCosecha} className={styles.form}>
-          <div className={styles.formFila}>
-            <div className={styles.campo}>
-              <label className={styles.label}>Fecha de cosecha</label>
-              <input type="date" className={styles.input} value={fechaCosecha} onChange={(e) => setFechaCosecha(e.target.value)} required />
-              {fechaCosecha && <span className={styles.ayuda}>{semanaAnio(fechaCosecha)}</span>}
-            </div>
-            <div className={styles.campo}>
-              <label className={styles.label}>Fecha de entrega <span className={styles.opcional}>(opcional)</span></label>
-              <input type="date" className={styles.input} value={fechaEntrega} onChange={(e) => setFechaEntrega(e.target.value)} />
-            </div>
-          </div>
-          <button type="submit" className={styles.btnPrimario} disabled={guardando || !fechaCosecha}>
-            {guardando ? "Guardando…" : "Crear cosecha"}
-          </button>
-        </form>
-      </section>
-
-      <section>
-        {cosechas.length === 0 ? (
-          <p className={styles.estado}>No hay cosechas todavía.</p>
-        ) : (
-          cosechas.map((c) => (
-            <CosechaCard
-              key={c.id}
-              cosecha={c}
-              todosProductos={todosProductos}
-              todasLasZonas={todasLasZonas}
-              onToggleActiva={() => toggleActiva(c)}
-              onEliminar={() => eliminarCosecha(c)}
-              onToggleProducto={(pid) => toggleProducto(c, pid)}
-              onAgregarFecha={(f) => agregarFecha(c.id, f, c.fechas ?? [])}
-              onEliminarFecha={eliminarFecha}
-              onToggleFecha={toggleFecha}
-              onCerrarFecha={cerrarFecha}
-              onToggleZona={toggleZonaEnFecha}
-            />
-          ))
-        )}
-      </section>
-    </div>
-  );
-}
-
-function CosechaCard({
-  cosecha, todosProductos, todasLasZonas,
-  onToggleActiva, onEliminar, onToggleProducto,
-  onAgregarFecha, onEliminarFecha, onToggleFecha, onCerrarFecha, onToggleZona,
-}: {
-  cosecha: Cosecha;
-  todosProductos: Producto[];
-  todasLasZonas: Zona[];
-  onToggleActiva: () => void;
-  onEliminar: () => void;
-  onToggleProducto: (id: string) => void;
-  onAgregarFecha: (fecha: string) => void;
-  onEliminarFecha: (id: string) => void;
-  onToggleFecha: (f: FechaEntrega) => void;
-  onCerrarFecha: (f: FechaEntrega) => void;
-  onToggleZona: (fechaId: string, zonaId: string, asignada: boolean) => void;
-}) {
-  const [nuevaFecha, setNuevaFecha] = useState("");
-  const [confirmDelete, setConfirmDelete] = useState(false);
-  const [confirmCerrar, setConfirmCerrar] = useState<string | null>(null);
-  const [confirmEliminar, setConfirmEliminar] = useState<string | null>(null);
-  const [pedidosPendientes, setPedidosPendientes] = useState<Record<string, number>>({});
-  const fechaIdsRef = useRef("");
-
-  useEffect(() => {
-    const ids = (cosecha.fechas ?? []).map((f) => f.id);
-    const key = ids.sort().join(",");
-    if (key === fechaIdsRef.current || ids.length === 0) {
-      if (ids.length === 0) setPedidosPendientes({});
-      return;
-    }
-    fechaIdsRef.current = key;
-    supabase
-      .from("pedidos")
-      .select("fecha_entrega_id")
-      .in("fecha_entrega_id", ids)
-      .in("estado", ["pendiente", "pagado"])
-      .then(({ data }) => {
-        const counts: Record<string, number> = {};
-        (data ?? []).forEach((p) => {
-          if (p.fecha_entrega_id) counts[p.fecha_entrega_id] = (counts[p.fecha_entrega_id] ?? 0) + 1;
-        });
-        setPedidosPendientes(counts);
-      });
-  });
-
-  const productosEnCosecha = new Set(cosecha.items?.map((i) => i.producto_id) ?? []);
-
-  const handleAgregarFecha = () => { if (nuevaFecha) { onAgregarFecha(nuevaFecha); setNuevaFecha(""); } };
-
-  return (
-    <div className={`${styles.card} ${!cosecha.activa ? styles.cardInactiva : ""}`}>
-      <div className={styles.cardHeaderRow}>
-        <div>
-          <h3 className={styles.cosechaNombre}>{cosecha.nombre}</h3>
-          <p className={styles.cosechaDesc}>Cosecha: {fechaCorta(cosecha.fecha_cosecha)}</p>
-        </div>
-        <div className={styles.cosechaAcciones}>
-          <button
-            className={cosecha.activa ? styles.btnActiva : styles.btnInactiva}
-            onClick={onToggleActiva}
-          >
-            {cosecha.activa ? "Abierta" : "Cerrada"}
-          </button>
-          {!confirmDelete ? (
-            <button className={styles.btnDanger} onClick={() => setConfirmDelete(true)}>Eliminar</button>
-          ) : (
-            <div className={styles.confirmRow}>
-              <span className={styles.confirmTxt}>¿Seguro?</span>
-              <button className={styles.btnDanger} onClick={() => { onEliminar(); setConfirmDelete(false); }}>Sí</button>
-              <button className={styles.btnSecundario} onClick={() => setConfirmDelete(false)}>No</button>
-            </div>
-          )}
-        </div>
+      <div className={styles.listaCabecera}>
+        <h1 className={styles.detalleTitulo}>Cosechas</h1>
+        <button type="button" className={`${styles.btnPrimario} ${styles.btnAlto} ${styles.btnConIcono}`} onClick={() => setCreando(true)}>
+          <IconoMas />Nueva cosecha
+        </button>
       </div>
 
-      {/* Productos */}
-      <div className={styles.fechasBloque}>
-        <p className={styles.fechasLabel}>Productos de esta cosecha</p>
-        {todosProductos.length === 0 ? (
-          <p className={styles.sinFechas}>No hay productos activos. Creá productos en la sección Productos.</p>
-        ) : (
-          <div className={styles.productosCheckGrid}>
-            {todosProductos.map((p) => (
-              <label key={p.id} className={`${styles.productoCheck} ${productosEnCosecha.has(p.id) ? styles.productoCheckActivo : ""}`}>
-                <input
-                  type="checkbox"
-                  checked={productosEnCosecha.has(p.id)}
-                  onChange={() => onToggleProducto(p.id)}
-                  className={styles.radioOculto}
-                />
-                <span>{p.emoji} {p.nombre}</span>
-              </label>
-            ))}
-          </div>
-        )}
-      </div>
+      {error && <p className={styles.errorMsg} role="alert">{error}</p>}
 
-      {/* Fechas de entrega */}
-      <div className={styles.fechasBloque}>
-        <p className={styles.fechasLabel}>Fechas de entrega</p>
-        {cosecha.fechas && cosecha.fechas.length > 0 ? (
-          <ul className={styles.fechasList}>
-            {cosecha.fechas
-              .sort((a, b) => a.fecha.localeCompare(b.fecha))
-              .map((f) => {
-                const pendientes = pedidosPendientes[f.id] ?? 0;
+      {!error && cosechas.length === 0 && <p className={styles.textoSec}>Todavía no hay cosechas. Creá la primera con "Nueva cosecha".</p>}
 
-                if (confirmCerrar === f.id) {
-                  return (
-                    <li key={f.id} className={styles.fechaItem}>
-                      <div className={styles.fechaConfirmPanel}>
-                        <p className={styles.fechaConfirmTexto}>
-                          Nuevos clientes ya no podrán seleccionar esta fecha. Los pedidos existentes creados con esta fecha seguirán así y deben entregarse en la fecha comprometida.
-                        </p>
-                        <div className={styles.fechaConfirmAcciones}>
-                          <button className={styles.btnDanger} onClick={() => { onCerrarFecha(f); setConfirmCerrar(null); }}>Sí, cerrar</button>
-                          <button className={styles.btnSecundario} onClick={() => setConfirmCerrar(null)}>Cancelar</button>
-                        </div>
-                      </div>
-                    </li>
-                  );
-                }
+      <ul className={styles.listaCosechas}>
+        {cosechas.map((c) => {
+          const productos = c.items?.filter((i) => i.producto?.activo).length ?? 0;
+          const fechas = c.fechas ?? [];
+          const abiertas = fechas.filter((f) => { const e = estadoFecha(f, hoy); return e === "recibe" || e === "falta"; }).length;
+          return (
+            <li key={c.id}>
+              <Link to={`/admin/cosechas/${c.id}`} className={styles.filaCosecha}>
+                <span className={styles.filaCosechaTitulos}>
+                  <span className={styles.filaCosechaNombre}>{nombreCorto(c.nombre)}</span>
+                  <span className={styles.textoSec}>Cosecha el {fechaConAnio(c.fecha_cosecha)}</span>
+                  <span className={styles.textoSec}>
+                    {plural(productos, "producto", "productos")} · {plural(fechas.length, "fecha de entrega", "fechas de entrega")} ({plural(abiertas, "abierta", "abiertas")})
+                  </span>
+                </span>
+                <BadgeCosecha estado={estadoCosecha(c, cosechas, hoy)} />
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
 
-                if (confirmEliminar === f.id) {
-                  return (
-                    <li key={f.id} className={styles.fechaItem}>
-                      <div className={styles.fechaConfirmPanel}>
-                        <p className={styles.fechaConfirmTexto}>¿Eliminar esta fecha de entrega?</p>
-                        <div className={styles.fechaConfirmAcciones}>
-                          <button className={styles.btnDanger} onClick={() => { onEliminarFecha(f.id); setConfirmEliminar(null); }}>Sí, eliminar</button>
-                          <button className={styles.btnSecundario} onClick={() => setConfirmEliminar(null)}>Cancelar</button>
-                        </div>
-                      </div>
-                    </li>
-                  );
-                }
-
-                const zonasAsignadas = new Set((f.zonas ?? []).map((fez) => fez.zona_id));
-                const zonasDelivery = todasLasZonas.filter((z) => z.tipo === "delivery");
-                const zonasRetiro = todasLasZonas.filter((z) => z.tipo === "retiro");
-
-                return (
-                  <li key={f.id} className={`${styles.fechaItem} ${!f.activa ? styles.fechaInactiva : ""}`}>
-                    <div className={styles.fechaItemHeader}>
-                      <div className={styles.fechaInfo}>
-                        <span>{fechaLarga(f.fecha)}</span>
-                        {f.activa && pendientes > 0 && (
-                          <span className={styles.pendientesBadge}>
-                            {pendientes} pedido{pendientes !== 1 ? "s" : ""} pendiente{pendientes !== 1 ? "s" : ""}
-                          </span>
-                        )}
-                      </div>
-                      <div className={styles.fechaAcciones}>
-                        {f.activa ? (
-                          <>
-                            <button className={styles.btnCerrar} onClick={() => setConfirmCerrar(f.id)}>
-                              Cerrar fecha de entrega
-                            </button>
-                            <button
-                              className={styles.btnDanger}
-                              disabled={pendientes > 0}
-                              title={pendientes > 0 ? `Tiene ${pendientes} pedido${pendientes !== 1 ? "s" : ""} pendiente${pendientes !== 1 ? "s" : ""}. Movalos a otra fecha antes de eliminar.` : undefined}
-                              onClick={() => setConfirmEliminar(f.id)}
-                            >
-                              🗑
-                            </button>
-                          </>
-                        ) : (
-                          <>
-                            <button className={styles.btnFechaToogle} onClick={() => onToggleFecha(f)}>Activar</button>
-                            <button className={styles.btnDanger} onClick={() => setConfirmEliminar(f.id)}>🗑</button>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                    {todasLasZonas.length > 0 && (
-                      <div className={styles.zonasBloque}>
-                        <p className={styles.zonasLabel}>Zonas disponibles para esta fecha</p>
-                        {zonasDelivery.length > 0 && (
-                          <div className={styles.zonasTipo}>
-                            <span className={styles.zonasTipoLabel}>Delivery</span>
-                            <div className={styles.zonasCheckGrid}>
-                              {zonasDelivery.map((z) => (
-                                <label key={z.id} className={`${styles.zonaCheck} ${zonasAsignadas.has(z.id) ? styles.zonaCheckActiva : ""}`}>
-                                  <input
-                                    type="checkbox"
-                                    checked={zonasAsignadas.has(z.id)}
-                                    onChange={() => onToggleZona(f.id, z.id, zonasAsignadas.has(z.id))}
-                                    className={styles.radioOculto}
-                                  />
-                                  <span>{z.nombre}</span>
-                                </label>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                        {zonasRetiro.length > 0 && (
-                          <div className={styles.zonasTipo}>
-                            <span className={styles.zonasTipoLabel}>Retiro</span>
-                            <div className={styles.zonasCheckGrid}>
-                              {zonasRetiro.map((z) => (
-                                <label key={z.id} className={`${styles.zonaCheck} ${zonasAsignadas.has(z.id) ? styles.zonaCheckActiva : ""}`}>
-                                  <input
-                                    type="checkbox"
-                                    checked={zonasAsignadas.has(z.id)}
-                                    onChange={() => onToggleZona(f.id, z.id, zonasAsignadas.has(z.id))}
-                                    className={styles.radioOculto}
-                                  />
-                                  <span>{z.nombre}</span>
-                                </label>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </li>
-                );
-              })}
-          </ul>
-        ) : (
-          <p className={styles.sinFechas}>Sin fechas de entrega.</p>
-        )}
-
-        <div className={styles.agregarFechaFila}>
-          <input type="date" className={styles.inputPeque} value={nuevaFecha} onChange={(e) => setNuevaFecha(e.target.value)} />
-          <button className={styles.btnSecundario} onClick={handleAgregarFecha} disabled={!nuevaFecha}>Agregar fecha</button>
-        </div>
-      </div>
+      {creando && <NuevaCosechaDialog cosechas={cosechas} onCerrar={() => setCreando(false)} />}
     </div>
   );
 }
